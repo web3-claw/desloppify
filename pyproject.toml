@@ -88,9 +88,9 @@ pretty = true
 files = [
   "desloppify/app/commands/review/cmd.py",
   "desloppify/app/commands/review/prepare.py",
-  "desloppify/app/commands/review/batches.py",
-  "desloppify/app/commands/review/batch_core.py",
-  "desloppify/app/commands/review/import_cmd.py",
+  "desloppify/app/commands/review/batch/core.py",
+  "desloppify/app/commands/review/batch/orchestrator.py",
+  "desloppify/app/commands/review/importing/cmd.py",
   "desloppify/app/commands/review/runtime/__init__.py",
   "desloppify/app/commands/scan/reporting/dimensions.py",
   "desloppify/app/commands/scan/reporting/summary.py",
