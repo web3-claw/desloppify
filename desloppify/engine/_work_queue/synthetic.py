@@ -214,7 +214,7 @@ def build_create_plan_item(plan: dict) -> WorkQueueItem | None:
         "kind": "workflow_action",
         "summary": "Create prioritized plan from review results",
         "detail": {},
-        "primary_command": "desloppify plan",
+        "primary_command": 'desloppify plan resolve "workflow::create-plan" --note "Plan reviewed and queue organized" --confirm',
         "blocked_by": [],
         "is_blocked": False,
     }
@@ -241,7 +241,6 @@ def build_subjective_items(
 
     # Review issues are keyed by raw dimension name (snake_case).
     review_open_by_dim: dict[str, int] = {}
-    open_objective_count = 0
     for issue in issues.values():
         if issue.get("status") != "open":
             continue
@@ -249,8 +248,6 @@ def build_subjective_items(
             dim_key = str(detail_dict(issue).get("dimension", "")).strip().lower()
             if dim_key:
                 review_open_by_dim[dim_key] = review_open_by_dim.get(dim_key, 0) + 1
-        else:
-            open_objective_count += 1
 
     items: list[WorkQueueItem] = []
     def _prepare_command(
@@ -288,15 +285,6 @@ def build_subjective_items(
             or (strict_val <= 0.0 and int(entry.get("failing", 0)) == 0)
         )
         is_stale = bool(entry.get("stale"))
-        # Only queue a subjective item when there is actionable work:
-        #   - unassessed: never reviewed, needs initial review
-        #   - stale: mechanical issues changed, needs re-review
-        #   - open_review > 0: fix the issues already found
-        #   - no objective issues left: queue is drained, resurface for re-review
-        # Freshly-assessed dimensions with no open issues are waiting for
-        # code fixes + rescan — they'll reappear as stale after that.
-        if not is_unassessed and not is_stale and open_review == 0 and open_objective_count > 0:
-            continue
         # If review issues already exist for this dimension, triage/fix them
         # before suggesting another review refresh pass.
         if open_review > 0:

@@ -77,11 +77,6 @@ def cmd_plan_output(args: argparse.Namespace) -> None:
 
 def _cmd_plan_generate(args: argparse.Namespace) -> None:
     """Generate the prioritized markdown plan (existing behavior)."""
-    # Auto-resolve the create-plan workflow item when plan runs
-    plan = load_plan()
-    if WORKFLOW_CREATE_PLAN_ID in plan.get("queue_order", []):
-        purge_ids(plan, [WORKFLOW_CREATE_PLAN_ID])
-        save_plan(plan)
     cmd_plan_output(args)
 
 

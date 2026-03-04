@@ -29,20 +29,7 @@ from desloppify.engine._state.schema import (
 logger = logging.getLogger(__name__)
 
 
-def _recompute_stats(
-    state: StateModel,
-    scan_path: str | None = None,
-    *,
-    subjective_integrity_target: float | None = None,
-) -> None:
-    """Local wrapper to avoid import-time cycles during state bootstrapping."""
-    from desloppify.engine._scoring.state_integration import recompute_stats
-
-    recompute_stats(
-        state,
-        scan_path=scan_path,
-        subjective_integrity_target=subjective_integrity_target,
-    )
+from desloppify.engine._state import _recompute_stats
 
 
 def _load_json(path: Path) -> dict[str, object]:

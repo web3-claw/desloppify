@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 
 from . import PARSE_INIT_ERRORS
 from ._cache import _PARSE_CACHE
@@ -13,6 +13,13 @@ if TYPE_CHECKING:
     from desloppify.languages._framework.treesitter import TreeSitterLangSpec
 
 logger = logging.getLogger(__name__)
+
+ComputeFn = Callable[[str, list[str]], tuple[int, str] | None]
+"""Signature for complexity signal compute functions.
+
+Each factory below returns a closure matching this type:
+``(content, lines, *, _filepath="") -> (count, label) | None``.
+"""
 
 
 def _ensure_parser(
@@ -94,7 +101,7 @@ def compute_nesting_depth_ts(
     return max_depth
 
 
-def make_nesting_depth_compute(spec: TreeSitterLangSpec):
+def make_nesting_depth_compute(spec: TreeSitterLangSpec) -> ComputeFn:
     """Create a compute function for nesting depth using tree-sitter.
 
     Returns a callable matching ComplexitySignal.compute signature:
@@ -120,7 +127,7 @@ def make_nesting_depth_compute(spec: TreeSitterLangSpec):
     return compute
 
 
-def make_long_functions_compute(spec: TreeSitterLangSpec):
+def make_long_functions_compute(spec: TreeSitterLangSpec) -> ComputeFn:
     """Create a compute function for long functions using tree-sitter.
 
     Flags the longest function in a file if it exceeds the threshold.
@@ -205,7 +212,7 @@ def _count_decisions(node) -> int:
     return count
 
 
-def make_cyclomatic_complexity_compute(spec: TreeSitterLangSpec):
+def make_cyclomatic_complexity_compute(spec: TreeSitterLangSpec) -> ComputeFn:
     """Create a compute function for max cyclomatic complexity per function.
 
     Cyclomatic complexity = 1 + number of decision points (if/for/while/case/catch/&&/||).
@@ -250,7 +257,7 @@ def make_cyclomatic_complexity_compute(spec: TreeSitterLangSpec):
 # ── Long parameter lists ─────────────────────────────────────
 
 
-def make_max_params_compute(spec: TreeSitterLangSpec):
+def make_max_params_compute(spec: TreeSitterLangSpec) -> ComputeFn:
     """Create a compute function that finds the max parameter count across functions.
 
     Uses tree-sitter function extraction with parameter parsing.
@@ -309,7 +316,7 @@ _CLOSURE_NODE_TYPES = frozenset({
 })
 
 
-def make_callback_depth_compute(spec: TreeSitterLangSpec):
+def make_callback_depth_compute(spec: TreeSitterLangSpec) -> ComputeFn:
     """Create a compute function for max callback/closure nesting depth.
 
     Counts nested anonymous functions / arrow functions / lambdas.

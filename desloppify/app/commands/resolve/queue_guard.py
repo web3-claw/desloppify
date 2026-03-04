@@ -113,8 +113,6 @@ def _check_queue_order_guard(
         if not items:
             return False
 
-        front_id, front_ids = _front_item_ids(items[0])
-
         clusters = plan.get("clusters", {})
         issues = state.get("issues", {})
         resolved_ids = _resolve_target_ids(patterns, clusters)
@@ -125,6 +123,16 @@ def _check_queue_order_guard(
         )
         if not resolved_ids:
             return False
+
+        # Collect IDs from the first N queue positions where N is the
+        # number of items being resolved.  This allows batch-resolving
+        # a contiguous prefix (e.g. the first 9 items in one command).
+        prefix_depth = max(len(resolved_ids), 1)
+        front_ids: set[str] = set()
+        front_id = items[0]["id"]
+        for item in items[:prefix_depth]:
+            _, item_ids = _front_item_ids(item)
+            front_ids.update(item_ids)
 
         out_of_order = resolved_ids - front_ids
         _prune_front_covered_clusters(

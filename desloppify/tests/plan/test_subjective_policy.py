@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from desloppify.engine._plan.subjective_policy import (
-    NON_OBJECTIVE_DETECTORS,
     SubjectiveVisibility,
     compute_subjective_visibility,
 )

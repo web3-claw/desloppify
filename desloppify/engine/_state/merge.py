@@ -32,20 +32,7 @@ from desloppify.engine._state.schema import (
 )
 
 
-def _recompute_stats(
-    state: StateModel,
-    scan_path: str | None = None,
-    *,
-    subjective_integrity_target: float | None = None,
-) -> None:
-    """Local wrapper to avoid import-time cycles during state bootstrapping."""
-    from desloppify.engine._scoring.state_integration import recompute_stats
-
-    recompute_stats(
-        state,
-        scan_path=scan_path,
-        subjective_integrity_target=subjective_integrity_target,
-    )
+from desloppify.engine._state import _recompute_stats
 
 # Mechanical detectors → subjective dimensions they provide evidence for.
 # When issues from these detectors change during a scan, the corresponding

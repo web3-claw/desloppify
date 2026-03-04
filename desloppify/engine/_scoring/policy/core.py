@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from desloppify.base.enums import Confidence, Tier
+from desloppify.base.enums import Tier
 from desloppify.base.registry import DETECTORS
 from desloppify.base.scoring_constants import (
     CONFIDENCE_WEIGHTS,

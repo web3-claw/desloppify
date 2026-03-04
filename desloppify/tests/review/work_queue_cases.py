@@ -597,8 +597,8 @@ def test_stale_subjective_appear_when_no_objective_backlog():
     assert "subjective::naming_quality" in ids
 
 
-def test_unassessed_subjective_appear_with_objective_backlog():
-    """Unassessed (placeholder) subjective items appear alongside objective issues."""
+def test_unassessed_subjective_wait_for_objective_drain():
+    """Unassessed subjective items wait until objective queue is drained."""
     objective_issues = [
         _issue(f"smells::src/{c}.py::x", detector="smells", tier=3)
         for c in "abcd"
@@ -630,9 +630,9 @@ def test_unassessed_subjective_appear_with_objective_backlog():
     ids = [item["id"] for item in queue["items"]]
     subj_ids = [i for i in ids if i.startswith("subjective::")]
 
-    # Unassessed (initial review) items are NOT gated
-    assert len(subj_ids) >= 1
-    assert len(ids) == 5  # 4 objective + 1 subjective
+    # Subjective items wait until all objective issues are resolved
+    assert len(subj_ids) == 0
+    assert len(ids) == 4  # 4 objective only
 
 
 # ── Impact-based ordering ──────────────────────────────────
@@ -767,8 +767,8 @@ def test_evidence_only_issue_still_in_state():
 
 
 def test_evidence_only_reduces_objective_count():
-    """When evidence-only issues are filtered, objective count drops,
-    letting subjective items surface sooner."""
+    """Subjective items don't surface while open objective issues exist,
+    even if those issues would later be filtered as evidence-only."""
     # All issues are low-confidence smells (has standalone_threshold)
     issues = [
         _issue(f"smells::src/{c}.py::x", detector="smells", confidence="low")
@@ -782,12 +782,12 @@ def test_evidence_only_reduces_objective_count():
     )
 
     queue = build_work_queue(state, count=None, include_subjective=True)
-    # All mechanical issues filtered (evidence-only), so subjective can surface
     subj_ids = [
         item["id"] for item in queue["items"]
         if item["kind"] == "subjective_dimension"
     ]
-    assert len(subj_ids) >= 1
+    # Objective issues exist (even if evidence-only), so subjective waits
+    assert len(subj_ids) == 0
 
 
 def test_impact_floor_filters_negligible_impact():
