@@ -86,16 +86,45 @@ def plan_user_ordered_section(
         "",
     ]
 
-    emitted: set[str] = set()
+    # Build override-based cluster lookup: override cluster wins over issue_ids membership
+    overrides: dict = plan.get("overrides", {})
+    effective_cluster: dict[str, str] = {}
+    for issue_id, ov in overrides.items():
+        ov_cluster = ov.get("cluster")
+        if ov_cluster and ov_cluster in clusters:
+            effective_cluster[issue_id] = ov_cluster
+
+    # queue_order is the single source of truth for item ordering
+    queue_pos = {qid: i for i, qid in enumerate(queue_order)}
+
+    # Pre-compute members per cluster, sorted by queue_order position
+    cluster_members: dict[str, list[str]] = {}
+    cluster_member_sets: dict[str, set[str]] = {}
     for cluster_name, cluster in clusters.items():
-        member_ids = [
+        members = [
             issue_id
             for issue_id in cluster.get("issue_ids", [])
-            if issue_id in ordered_ids and issue_id in by_id
+            if issue_id in ordered_ids
+            and issue_id in by_id
+            and effective_cluster.get(issue_id, cluster_name) == cluster_name
         ]
+        members.sort(key=lambda x: queue_pos.get(x, float("inf")))
+        if members:
+            cluster_members[cluster_name] = members
+            cluster_member_sets[cluster_name] = set(members)
+
+    # Sort clusters by the queue_order position of their first member
+    sorted_cluster_names = sorted(
+        cluster_members,
+        key=lambda cn: queue_pos.get(cluster_members[cn][0], float("inf")),
+    )
+
+    emitted: set[str] = set()
+    for cluster_name in sorted_cluster_names:
+        member_ids = [mid for mid in cluster_members[cluster_name] if mid not in emitted]
         if not member_ids:
             continue
-        desc = cluster.get("description") or ""
+        desc = clusters[cluster_name].get("description") or ""
         lines.append(f"### Cluster: {cluster_name}")
         if desc:
             lines.append(f"> {desc}")
