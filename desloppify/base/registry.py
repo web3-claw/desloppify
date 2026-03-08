@@ -39,7 +39,7 @@ _RUNTIME = _RegistryRuntime(
     ),
 )
 
-# Compatibility handles kept for existing imports/tests.
+# Module-level handles into the mutable runtime registry.
 DETECTORS = _RUNTIME.detectors
 _DISPLAY_ORDER = _RUNTIME.display_order
 _on_register_callbacks = _RUNTIME.callbacks

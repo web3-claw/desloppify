@@ -44,7 +44,7 @@ from desloppify.intelligence.review.prepare_batches import (
 from desloppify.intelligence.review.prepare_batches import (
     filter_batches_to_dimensions as _filter_batches_to_dimensions,
 )
-from desloppify.intelligence.review.prepare_holistic_flow import (
+from desloppify.intelligence.review.prepare_holistic_orchestration import (
     prepare_holistic_review_payload,
 )
 from desloppify.intelligence.review.selection import (

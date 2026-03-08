@@ -114,7 +114,7 @@ def cmd_plan_triage(args: argparse.Namespace) -> None:
         cmd_stage_prompt(args, services=resolved_services)
         return
     if getattr(args, "run_stages", False):
-        from .triage.runner import do_run_triage_stages
+        from .triage.runner.orchestrator import do_run_triage_stages
         do_run_triage_stages(args, services=resolved_services)
         return
 

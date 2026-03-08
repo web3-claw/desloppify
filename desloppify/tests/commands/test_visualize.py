@@ -13,10 +13,12 @@ from desloppify.app.output._viz_cmd_context import load_cmd_context
 from desloppify.app.output.tree_text import _aggregate, _print_tree
 from desloppify.app.output.visualize import (
     D3_CDN_URL,
-    _build_tree,
-    _collect_file_data,
     cmd_viz,
     generate_visualization,
+)
+from desloppify.app.output.visualize_data import (
+    _build_tree,
+    _collect_file_data,
 )
 from desloppify.base.output.contract import OutputResult
 
@@ -674,7 +676,7 @@ class TestVizWriteBehavior:
                 raise RuntimeError("dep graph parse failed")
 
         monkeypatch.setattr(
-            "desloppify.app.output.visualize._resolve_visualization_lang",
+            "desloppify.app.output.visualize_data._resolve_visualization_lang",
             lambda _path, _lang=None: _Lang(),
         )
 

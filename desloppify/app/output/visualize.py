@@ -6,7 +6,12 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from desloppify.app.output import visualize_data as _viz_data
+from desloppify.app.output.visualize_data import (
+    _build_dep_graph_for_path,
+    _build_tree,
+    _collect_file_data,
+    _issues_by_file,
+)
 from desloppify.app.output._viz_cmd_context import load_cmd_context
 from desloppify.app.output.tree_text import render_tree_lines
 from desloppify.base.discovery.file_paths import safe_write_text
@@ -17,24 +22,11 @@ from desloppify.state import score_snapshot
 
 D3_CDN_URL = "https://d3js.org/d3.v7.min.js"
 
-_build_dep_graph_for_path = _viz_data._build_dep_graph_for_path
-_build_tree = _viz_data._build_tree
-_collect_file_data = _viz_data._collect_file_data
-_fallback_source_files = _viz_data._fallback_source_files
-_issues_by_file = _viz_data._issues_by_file
-_resolve_visualization_lang = _viz_data._resolve_visualization_lang
-
 
 __all__ = [
     "D3_CDN_URL",
     "cmd_viz",
     "cmd_tree",
-    "_build_dep_graph_for_path",
-    "_build_tree",
-    "_collect_file_data",
-    "_fallback_source_files",
-    "_issues_by_file",
-    "_resolve_visualization_lang",
 ]
 
 
