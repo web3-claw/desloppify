@@ -7,6 +7,9 @@ App-layer scorecard renderers import this to keep dependency direction clean.
 from __future__ import annotations
 
 from desloppify.engine._scoring.policy.core import DIMENSIONS
+from desloppify.engine.planning.scorecard_dimensions import (
+    prepare_scorecard_dimensions,
+)
 
 
 def scorecard_dimension_rows(
@@ -16,9 +19,8 @@ def scorecard_dimension_rows(
 ) -> list[tuple[str, dict]]:
     """Return scorecard rows using canonical dimension ordering.
 
-    Tries ``prepare_scorecard_dimensions`` from the app layer when available
-    (deferred import to avoid hard engine -> app dependency), then falls back
-    to a simple mechanical-dimension listing.
+    Uses shared engine-level scorecard projection, then falls back to a simple
+    mechanical-dimension listing when no rows are projected.
     """
     if dim_scores is None:
         dim_scores = (
@@ -29,17 +31,9 @@ def scorecard_dimension_rows(
         projected_state = dict(state)
         projected_state["dimension_scores"] = dim_scores
 
-    # Try the full app-layer scorecard projection when it can be imported.
-    try:
-        from desloppify.app.output.scorecard_parts.dimensions import (
-            prepare_scorecard_dimensions,
-        )
-
-        rows = prepare_scorecard_dimensions(projected_state)
-        if rows:
-            return rows
-    except ImportError as exc:
-        _ = exc
+    rows = prepare_scorecard_dimensions(projected_state)
+    if rows:
+        return rows
 
     # Fallback for synthetic/unit-test states without full scorecard context.
     fallback_dim_scores = dim_scores or {}

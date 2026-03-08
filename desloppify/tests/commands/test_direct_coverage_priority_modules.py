@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 import desloppify.app.commands.helpers.display as display_mod
 import desloppify.app.commands.next.render_support as next_render_support_mod
 import desloppify.app.commands.helpers.persist as helpers_persist_mod
@@ -29,6 +31,7 @@ import desloppify.engine._scoring.results.health as scoring_health_mod
 import desloppify.engine._scoring.results.impact as scoring_impact_mod
 import desloppify.engine._state.schema_scores as schema_scores_mod
 import desloppify.engine._work_queue.plan_order as work_queue_plan_order_mod
+import desloppify.engine._work_queue.synthetic as work_queue_synthetic_mod
 import desloppify.engine.planning as planning_pkg
 import desloppify.engine.planning.dimension_rows as planning_dimension_rows_mod
 import desloppify.engine.planning.render_sections as planning_render_sections_mod
@@ -121,3 +124,11 @@ def test_review_import_parse_normalizes_legacy_findings_alias():
     )
     assert errors == []
     assert payload == {"issues": []}
+
+
+def test_engine_modules_avoid_app_layer_import_paths():
+    synthetic_src = inspect.getsource(work_queue_synthetic_mod.build_triage_stage_items)
+    assert "desloppify.app.commands.plan.triage_playbook" not in synthetic_src
+
+    dimension_rows_src = inspect.getsource(planning_dimension_rows_mod)
+    assert "desloppify.app.output.scorecard_parts.dimensions" not in dimension_rows_src

@@ -96,7 +96,7 @@ def build_triage_stage_items(plan: dict, state: dict) -> list[WorkQueueItem]:
 
     Returns an empty list when no triage stages are pending.
     """
-    from desloppify.app.commands.plan.triage_playbook import (
+    from desloppify.engine._plan.triage_playbook import (
         TRIAGE_STAGE_DEPENDENCIES,
         TRIAGE_STAGE_LABELS,
     )
