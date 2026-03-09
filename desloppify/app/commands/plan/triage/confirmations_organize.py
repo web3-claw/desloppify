@@ -6,11 +6,11 @@ import argparse
 
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
-from desloppify.state import utc_now
 
 from .confirmations_basic import MIN_ATTESTATION_LEN, validate_attestation
+from .confirmations_shared import ensure_stage_is_confirmable, finalize_stage_confirmation
 from .display import show_plan_summary
-from .helpers import count_log_activity_since, open_review_ids_from_state, purge_triage_stage, triage_coverage
+from .helpers import count_log_activity_since, open_review_ids_from_state, triage_coverage
 from .services import TriageServices, default_triage_services
 
 
@@ -23,15 +23,8 @@ def confirm_organize(
     services: TriageServices | None = None,
 ) -> None:
     """Show full plan summary and record confirmation if attestation is valid."""
-
-
     resolved_services = services or default_triage_services()
-    if "organize" not in stages:
-        print(colorize("  Cannot confirm: organize stage not recorded.", "red"))
-        print(colorize('  Run: desloppify plan triage --stage organize --report "..."', "dim"))
-        return
-    if stages["organize"].get("confirmed_at"):
-        print(colorize("  Organize stage already confirmed.", "green"))
+    if not ensure_stage_is_confirmable(stages, stage="organize"):
         return
 
     runtime = resolved_services.command_runtime(args)
@@ -130,31 +123,23 @@ def confirm_organize(
             print(colorize(f"    {name}: {step_count} steps, 0 issues", "yellow"))
         print(colorize("  These may need issues added, or may be leftover from resolved work.", "dim"))
 
-    if not attestation or len(attestation.strip()) < MIN_ATTESTATION_LEN:
-        if attestation:
-            print(colorize(f"\n  Attestation too short ({len(attestation.strip())} chars, min {MIN_ATTESTATION_LEN}).", "red"))
-        print(colorize("\n  If satisfied, confirm:", "dim"))
-        print(colorize('    desloppify plan triage --confirm organize --attestation "This plan is correct..."', "dim"))
-        print(colorize("  If not, adjust clusters, priorities, or queue order before completing.", "dim"))
-        return
-
-    validation_err = validate_attestation(attestation.strip(), "organize", cluster_names=organize_clusters)
-    if validation_err:
-        print(colorize(f"\n  {validation_err}", "red"))
-        return
-
     organized, total, _ = triage_coverage(plan, open_review_ids=open_review_ids_from_state(state))
-    stages["organize"]["confirmed_at"] = utc_now()
-    stages["organize"]["confirmed_text"] = attestation.strip()
-    purge_triage_stage(plan, "organize")
-    resolved_services.append_log_entry(
-        plan,
-        "triage_confirm_organize",
-        actor="user",
-        detail={"attestation": attestation.strip(), "coverage": f"{organized}/{total}"},
-    )
-    resolved_services.save_plan(plan)
-    print(colorize(f'  ✓ Organize confirmed: "{attestation.strip()}"', "green"))
+    if not finalize_stage_confirmation(
+        plan=plan,
+        stages=stages,
+        stage="organize",
+        attestation=attestation,
+        min_attestation_len=MIN_ATTESTATION_LEN,
+        command_hint='desloppify plan triage --confirm organize --attestation "This plan is correct..."',
+        validation_stage="organize",
+        validate_attestation_fn=validate_attestation,
+        validation_kwargs={"cluster_names": organize_clusters},
+        log_action="triage_confirm_organize",
+        log_detail={"coverage": f"{organized}/{total}"},
+        services=resolved_services,
+        not_satisfied_hint="If not, adjust clusters, priorities, or queue order before completing.",
+    ):
+        return
     print_user_message(
         "Hey — organize is confirmed. Next: enrich your steps"
         " with detail and issue_refs so they're executor-ready."
