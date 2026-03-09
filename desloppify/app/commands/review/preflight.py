@@ -10,9 +10,11 @@ from __future__ import annotations
 import re
 import sys
 
+from desloppify.base.enums import Status
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.engine._work_queue.context import queue_context
+from desloppify.engine._state.filtering import issue_in_scan_scope
 from desloppify.state import StateModel, save_state
 
 from .helpers import parse_dimensions
@@ -89,10 +91,36 @@ def _objective_and_subjective_backlog(
 ) -> tuple[int, int]:
     ctx = queue_context(state)
     objective_total = ctx.policy.objective_count
-    # Subjective dimensions are resolved BY running reviews, so they never
-    # block review --prepare (that would be circular).  Only objective
-    # issues constitute genuine blocking backlog.
-    return objective_total, 0
+    if not blocking_dims:
+        return objective_total, 0
+
+    normalized_blocking_dims = {_normalize_dimension_key(dim) for dim in blocking_dims}
+    skipped_ids = set((ctx.plan or {}).get("skipped", {}).keys())
+    scan_path = state.get("scan_path")
+    issues = state.get("issues", {})
+    subjective_total = 0
+
+    for issue_id, issue in issues.items():
+        if issue.get("status") != Status.OPEN:
+            continue
+        if issue.get("detector") != "review":
+            continue
+        if issue.get("suppressed"):
+            continue
+        if issue_id in skipped_ids:
+            continue
+        if not issue_in_scan_scope(str(issue.get("file", "")), scan_path):
+            continue
+        detail = issue.get("detail")
+        if not isinstance(detail, dict):
+            continue
+        dim = detail.get("dimension")
+        if not isinstance(dim, str) or not dim.strip():
+            continue
+        if _normalize_dimension_key(dim) in normalized_blocking_dims:
+            subjective_total += 1
+
+    return objective_total, subjective_total
 
 
 def _print_backlog_blocked_message(

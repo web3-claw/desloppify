@@ -32,6 +32,17 @@ def _state_with_prior_review() -> dict:
     }
 
 
+def _review_issue(*, issue_id: str, dimension: str, status: str = "open") -> dict:
+    return {
+        "id": issue_id,
+        "detector": "review",
+        "status": status,
+        "file": ".",
+        "suppressed": False,
+        "detail": {"dimension": dimension},
+    }
+
+
 # -- review_rerun_preflight (gate logic) --------------------------------------
 
 
@@ -68,12 +79,36 @@ def test_blocked_when_open_objective_items(capsys):
     assert "--force-review-rerun" in err
 
 
-def test_subjective_items_never_block_preflight():
-    """Subjective dimensions are resolved BY running reviews — never blocking."""
+def test_subjective_review_backlog_blocks_preflight(capsys):
+    """Open review findings in scored dimensions block rerun preflight."""
     state = _state_with_prior_review()
+    state["issues"] = {
+        "review::naming": _review_issue(
+            issue_id="review::naming",
+            dimension="naming_quality",
+        )
+    }
     with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
-        # Should NOT raise — subjective items don't block
-        review_rerun_preflight(state, _make_args())
+        with pytest.raises(CommandError) as exc:
+            review_rerun_preflight(state, _make_args())
+        assert exc.value.exit_code == 1
+
+    err = capsys.readouterr().err
+    assert "Open subjective queue item(s): 1" in err
+
+
+def test_subjective_review_backlog_is_dimension_filtered():
+    """Rerun targeting one scored dimension ignores review backlog in others."""
+    state = _state_with_prior_review()
+    state["issues"] = {
+        "review::logic": _review_issue(
+            issue_id="review::logic",
+            dimension="logic_clarity",
+        )
+    }
+    args = _make_args(dimensions="naming_quality")
+    with patch(_QUEUE_CONTEXT, return_value=_mock_queue_context(objective_count=0)):
+        review_rerun_preflight(state, args)
 
 
 def test_targeted_dimension_does_not_block_own_preparation():
@@ -650,5 +685,4 @@ def test_merge_skips_preflight():
     ):
         cmd_review(_review_args(merge=True))
         mock_pf.assert_not_called()
-
 
