@@ -152,6 +152,27 @@ def test_sync_workflow_helpers_inject_expected_items(monkeypatch) -> None:
     assert sync_workflow_mod._no_unscored(state, policy=None) is False
 
 
+def test_sync_workflow_injection_removes_stale_skip_entries() -> None:
+    plan = {
+        "queue_order": [],
+        "skipped": {
+            "workflow::create-plan": {
+                "issue_id": "workflow::create-plan",
+                "kind": "temporary",
+                "skipped_at_scan": 0,
+            }
+        },
+    }
+    state = {"issues": {"id1": {"status": "open", "detector": "unused"}}}
+    policy = SimpleNamespace(unscored_ids=set(), has_objective_backlog=True)
+
+    result = sync_workflow_mod.sync_create_plan_needed(plan, state, policy=policy)
+
+    assert result.injected == ["workflow::create-plan"]
+    assert "workflow::create-plan" in plan["queue_order"]
+    assert "workflow::create-plan" not in plan["skipped"]
+
+
 def test_subjective_integrity_helpers_apply_penalty_threshold(monkeypatch) -> None:
     monkeypatch.setattr(scoring_subjective_mod, "matches_target_score", lambda score, target: score >= target)
 

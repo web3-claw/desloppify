@@ -30,9 +30,13 @@ def _no_unscored(
     )
 
 
-def _inject(order: list[str], item_id: str) -> QueueSyncResult:
-    """Append *item_id* to *order* and return a result recording the injection."""
+def _inject(plan: PlanModel, item_id: str) -> QueueSyncResult:
+    """Append *item_id* and clear stale skip entries for that workflow item."""
+    order = plan["queue_order"]
     order.append(item_id)
+    skipped = plan.get("skipped", {})
+    if isinstance(skipped, dict):
+        skipped.pop(item_id, None)
     return QueueSyncResult(injected=[item_id])
 
 
@@ -60,7 +64,7 @@ def sync_score_checkpoint_needed(
         return _EMPTY()
     if not _no_unscored(state, policy):
         return _EMPTY()
-    return _inject(order, WORKFLOW_SCORE_CHECKPOINT_ID)
+    return _inject(plan, WORKFLOW_SCORE_CHECKPOINT_ID)
 
 
 def sync_create_plan_needed(
@@ -92,7 +96,7 @@ def sync_create_plan_needed(
     if not has_objective_backlog(state, policy):
         return _EMPTY()
 
-    return _inject(order, WORKFLOW_CREATE_PLAN_ID)
+    return _inject(plan, WORKFLOW_CREATE_PLAN_ID)
 
 
 def sync_import_scores_needed(
@@ -116,7 +120,7 @@ def sync_import_scores_needed(
         return _EMPTY()
     if assessment_mode != "issues_only":
         return _EMPTY()
-    return _inject(order, WORKFLOW_IMPORT_SCORES_ID)
+    return _inject(plan, WORKFLOW_IMPORT_SCORES_ID)
 
 
 def sync_communicate_score_needed(
@@ -142,7 +146,7 @@ def sync_communicate_score_needed(
         return _EMPTY()
     if not scores_just_imported and not _no_unscored(state, policy):
         return _EMPTY()
-    return _inject(order, WORKFLOW_COMMUNICATE_SCORE_ID)
+    return _inject(plan, WORKFLOW_COMMUNICATE_SCORE_ID)
 
 
 __all__ = [
