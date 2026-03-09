@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from desloppify.languages._framework.base.types import LangRuntimeContract
 from desloppify.languages.typescript.phases_basic import (
-    phase_deprecated,
-    phase_exports,
-    phase_logs,
-    phase_unused,
+    phase_deprecated as _phase_deprecated,
+    phase_exports as _phase_exports,
+    phase_logs as _phase_logs,
+    phase_unused as _phase_unused,
 )
 from desloppify.languages.typescript.phases_config import (
     TS_COMPLEXITY_SIGNALS,
@@ -27,20 +28,62 @@ from desloppify.languages.typescript.phases_coupling import (
     detect_single_use,
     make_boundary_issues,
     orphaned_detector_mod,
-    phase_coupling,
+    phase_coupling as _phase_coupling,
 )
-from desloppify.languages.typescript.phases_smells import phase_smells
+from desloppify.languages.typescript.phases_smells import phase_smells as _phase_smells
 from desloppify.languages.typescript.phases_structural import (
     _detect_flat_dirs,
     _detect_passthrough,
     _detect_props_bloat,
     _detect_structural_signals,
-    phase_structural,
+    phase_structural as _phase_structural,
 )
 from desloppify.state import Issue
 
+PhasePotentialMap = dict[str, int]
+PhaseResult = tuple[list[Issue], PhasePotentialMap]
+PhaseWrapper = Callable[[Path, LangRuntimeContract], PhaseResult]
+
+
+def phase_logs(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the logs phase using the shared typed phase wrapper signature."""
+    return _phase_logs(path, lang)
+
+
+def phase_unused(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the unused phase using the shared typed phase wrapper signature."""
+    return _phase_unused(path, lang)
+
+
+def phase_exports(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the dead-exports phase using the shared typed phase wrapper signature."""
+    return _phase_exports(path, lang)
+
+
+def phase_deprecated(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the deprecated API phase using the shared typed phase wrapper signature."""
+    return _phase_deprecated(path, lang)
+
+
+def phase_structural(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the structural phase using the shared typed phase wrapper signature."""
+    return _phase_structural(path, lang)
+
+
+def phase_coupling(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the coupling phase using the shared typed phase wrapper signature."""
+    return _phase_coupling(path, lang)
+
+
+def phase_smells(path: Path, lang: LangRuntimeContract) -> PhaseResult:
+    """Run the smells phase using the shared typed phase wrapper signature."""
+    return _phase_smells(path, lang)
+
 
 __all__ = [
+    "PhasePotentialMap",
+    "PhaseResult",
+    "PhaseWrapper",
     "TS_COMPLEXITY_SIGNALS",
     "TS_GOD_RULES",
     "TS_SKIP_DIRS",
