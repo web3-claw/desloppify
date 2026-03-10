@@ -38,54 +38,6 @@ from .helpers import (
 from .services import TriageServices, default_triage_services
 
 
-def _require_completion_stage_path(
-    *,
-    plan: dict,
-    meta: dict,
-    stages: dict,
-    attestation: str | None,
-    save_plan_fn,
-) -> bool:
-    """Require and auto-confirm the organize/enrich/sense-check completion path."""
-    stage_checks = (
-        (
-            _require_organize_stage_for_complete,
-            lambda: _auto_confirm_stage_for_complete(
-                plan=plan,
-                stages=stages,
-                stage="organize",
-                attestation=attestation,
-                save_plan_fn=save_plan_fn,
-            ),
-        ),
-        (
-            _require_enrich_stage_for_complete,
-            lambda: _auto_confirm_enrich_for_complete(
-                plan=plan,
-                stages=stages,
-                attestation=attestation,
-                save_plan_fn=save_plan_fn,
-            ),
-        ),
-        (
-            _require_sense_check_stage_for_complete,
-            lambda: _auto_confirm_stage_for_complete(
-                plan=plan,
-                stages=stages,
-                stage="sense-check",
-                attestation=attestation,
-                save_plan_fn=save_plan_fn,
-            ),
-        ),
-    )
-    for require_fn, confirm_fn in stage_checks:
-        if not require_fn(plan=plan, meta=meta, stages=stages):
-            return False
-        if not confirm_fn():
-            return False
-    return True
-
-
 def _print_completion_coverage_warning(*, organized: int, total: int) -> None:
     """Print warnings for incomplete cluster coverage at completion time."""
     if total <= 0:
@@ -193,14 +145,42 @@ def _cmd_triage_complete(
     state = resolved_services.command_runtime(args).state
     review_ids = open_review_ids_from_state(state)
 
-    if not _require_completion_stage_path(
-        plan=plan,
-        meta=meta,
-        stages=stages,
-        attestation=attestation,
-        save_plan_fn=resolved_services.save_plan,
-    ):
-        return
+    completion_stage_checks = (
+        (
+            _require_organize_stage_for_complete,
+            lambda: _auto_confirm_stage_for_complete(
+                plan=plan,
+                stages=stages,
+                stage="organize",
+                attestation=attestation,
+                save_plan_fn=resolved_services.save_plan,
+            ),
+        ),
+        (
+            _require_enrich_stage_for_complete,
+            lambda: _auto_confirm_enrich_for_complete(
+                plan=plan,
+                stages=stages,
+                attestation=attestation,
+                save_plan_fn=resolved_services.save_plan,
+            ),
+        ),
+        (
+            _require_sense_check_stage_for_complete,
+            lambda: _auto_confirm_stage_for_complete(
+                plan=plan,
+                stages=stages,
+                stage="sense-check",
+                attestation=attestation,
+                save_plan_fn=resolved_services.save_plan,
+            ),
+        ),
+    )
+    for require_stage, confirm_stage in completion_stage_checks:
+        if not require_stage(plan=plan, meta=meta, stages=stages):
+            return
+        if not confirm_stage():
+            return
 
     if not _completion_clusters_valid(plan, state):
         return

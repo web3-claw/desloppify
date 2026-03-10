@@ -118,30 +118,6 @@ def _selected_batch_indexes_for_args(args, *, batch_count: int) -> list[int]:
     )
 
 
-def _prepare_run_artifacts_for_policy(
-    *,
-    stamp,
-    selected_indexes,
-    batches,
-    packet_path,
-    run_root,
-    repo_root,
-    policy_block: str,
-):
-    """Write per-batch prompt/output artifacts using the active policy block."""
-    return prepare_run_artifacts(
-        stamp=stamp,
-        selected_indexes=selected_indexes,
-        batches=batches,
-        packet_path=packet_path,
-        run_root=run_root,
-        repo_root=repo_root,
-        build_prompt_fn=partial(_prompt_fn_with_policy, policy_block=policy_block),
-        safe_write_text_fn=safe_write_text,
-        colorize_fn=colorize,
-    )
-
-
 def _build_codex_batch_runner_deps(policy) -> CodexBatchRunnerDeps:
     """Build shared subprocess deps for one local codex batch run."""
     return CodexBatchRunnerDeps(
@@ -157,67 +133,6 @@ def _build_codex_batch_runner_deps(policy) -> CodexBatchRunnerDeps:
         stall_after_output_seconds=policy.stall_kill_seconds,
         max_retries=policy.batch_max_retries,
         retry_backoff_seconds=policy.batch_retry_backoff_seconds,
-    )
-
-
-def _run_codex_batch_with_deps(
-    *,
-    prompt,
-    repo_root,
-    output_file,
-    log_file,
-    deps: CodexBatchRunnerDeps,
-) -> int:
-    """Execute one review batch with prebuilt runner deps."""
-    return run_codex_batch(
-        prompt=prompt,
-        repo_root=repo_root,
-        output_file=output_file,
-        log_file=log_file,
-        deps=deps,
-    )
-
-
-def _execute_batches_with_options(
-    *,
-    tasks,
-    options,
-    progress_fn=None,
-    error_log_fn=None,
-):
-    """Adapt phase options into the shared batch executor contract."""
-    return execute_batches(
-        tasks=tasks,
-        options=BatchExecutionOptions(
-            run_parallel=options.run_parallel,
-            max_parallel_workers=options.max_parallel_workers,
-            heartbeat_seconds=options.heartbeat_seconds,
-        ),
-        progress_fn=progress_fn,
-        error_log_fn=error_log_fn,
-    )
-
-
-def _collect_batch_results_for_review(
-    *,
-    selected_indexes,
-    failures,
-    output_files,
-    allowed_dims,
-):
-    """Load, normalize, and validate raw batch outputs for import."""
-    return collect_batch_results(
-        selected_indexes=selected_indexes,
-        failures=failures,
-        output_files=output_files,
-        allowed_dims=allowed_dims,
-        extract_payload_fn=lambda raw: extract_json_payload(raw, log_fn=log),
-        normalize_result_fn=lambda payload, dims: normalize_batch_result(
-            payload,
-            dims,
-            max_batch_issues=max_batch_issues_for_dimension_count(len(dims)),
-            abstraction_sub_axes=ABSTRACTION_SUB_AXES,
-        ),
     )
 
 
@@ -259,15 +174,38 @@ def _build_batch_run_deps(*, policy, project_root: Path) -> review_batches_mod.B
         load_or_prepare_packet_fn=_load_or_prepare_packet,
         selected_batch_indexes_fn=_selected_batch_indexes_for_args,
         prepare_run_artifacts_fn=partial(
-            _prepare_run_artifacts_for_policy,
-            policy_block=policy_block,
+            prepare_run_artifacts,
+            build_prompt_fn=partial(_prompt_fn_with_policy, policy_block=policy_block),
+            safe_write_text_fn=safe_write_text,
+            colorize_fn=colorize,
         ),
         run_codex_batch_fn=partial(
-            _run_codex_batch_with_deps,
+            run_codex_batch,
             deps=codex_batch_deps,
         ),
-        execute_batches_fn=_execute_batches_with_options,
-        collect_batch_results_fn=_collect_batch_results_for_review,
+        execute_batches_fn=lambda **kwargs: execute_batches(
+            tasks=kwargs["tasks"],
+            options=BatchExecutionOptions(
+                run_parallel=kwargs["options"].run_parallel,
+                max_parallel_workers=kwargs["options"].max_parallel_workers,
+                heartbeat_seconds=kwargs["options"].heartbeat_seconds,
+            ),
+            progress_fn=kwargs.get("progress_fn"),
+            error_log_fn=kwargs.get("error_log_fn"),
+        ),
+        collect_batch_results_fn=lambda **kwargs: collect_batch_results(
+            selected_indexes=kwargs["selected_indexes"],
+            failures=kwargs["failures"],
+            output_files=kwargs["output_files"],
+            allowed_dims=kwargs["allowed_dims"],
+            extract_payload_fn=lambda raw: extract_json_payload(raw, log_fn=log),
+            normalize_result_fn=lambda payload, dims: normalize_batch_result(
+                payload,
+                dims,
+                max_batch_issues=max_batch_issues_for_dimension_count(len(dims)),
+                abstraction_sub_axes=ABSTRACTION_SUB_AXES,
+            ),
+        ),
         print_failures_fn=print_failures,
         print_failures_and_raise_fn=print_failures_and_raise,
         merge_batch_results_fn=_merge_batch_results,
