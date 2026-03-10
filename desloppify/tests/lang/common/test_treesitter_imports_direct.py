@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import builtins
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -223,6 +224,20 @@ def test_functional_import_resolvers_cover_common_conventions(tmp_path: Path) ->
     assert functional_mod.resolve_fsharp_import("System.IO", "", str(tmp_path)) is None
 
 
+def test_functional_import_resolver_returns_none_when_umbrella_listing_fails(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    apps_dir = tmp_path / "apps"
+    apps_dir.mkdir()
+
+    def _boom(_path: str) -> list[str]:
+        raise OSError("boom")
+
+    monkeypatch.setattr(functional_mod.os, "listdir", _boom)
+    assert functional_mod.resolve_elixir_import("MyApp.Worker", "", str(tmp_path)) is None
+
+
 def test_script_import_resolvers_cover_cached_paths_and_extensions(tmp_path: Path) -> None:
     ruby_file = tmp_path / "lib" / "helper.rb"
     ruby_file.parent.mkdir(parents=True)
@@ -272,3 +287,15 @@ def test_script_import_resolvers_cover_cached_paths_and_extensions(tmp_path: Pat
     r_file.write_text("print('ok')\n", encoding="utf-8")
     assert scripts_mod.resolve_r_import("helpers.R", str(tmp_path / "analysis.R"), str(tmp_path)) == str(r_file)
 
+
+def test_script_import_resolver_returns_empty_psr4_mapping_on_read_error(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    scripts_mod._PHP_COMPOSER_CACHE.clear()
+
+    def _boom(*_args, **_kwargs):
+        raise OSError("boom")
+
+    monkeypatch.setattr(builtins, "open", _boom)
+    assert scripts_mod._read_composer_psr4(str(tmp_path)) == {}

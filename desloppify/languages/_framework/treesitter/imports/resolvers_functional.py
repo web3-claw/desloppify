@@ -62,7 +62,7 @@ def resolve_elixir_import(import_text: str, source_file: str, scan_path: str) ->
                     if os.path.isfile(candidate):
                         return candidate
         except OSError:
-            pass
+            return None
 
     return None
 
