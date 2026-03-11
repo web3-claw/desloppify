@@ -26,6 +26,7 @@ from desloppify.app.commands.plan.override import (
 )
 from desloppify.app.commands.plan.policy_cmd import cmd_policy_dispatch
 from desloppify.app.commands.plan.queue_render import cmd_plan_queue
+from desloppify.app.commands.plan.repair_state import cmd_plan_repair_state
 from desloppify.app.commands.plan.reorder_handlers import cmd_plan_reorder
 from desloppify.app.commands.plan.triage.command import cmd_plan_triage
 from desloppify.engine.plan_state import (
@@ -221,6 +222,7 @@ _PLAN_ACTION_HANDLERS = {
     "scan-gate": cmd_plan_scan_gate,
     "commit-log": cmd_commit_log_dispatch,
     "policy": cmd_policy_dispatch,
+    "repair-state": cmd_plan_repair_state,
 }
 
 

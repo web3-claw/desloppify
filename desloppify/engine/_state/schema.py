@@ -20,6 +20,7 @@ from desloppify.engine._state.schema_types import (
     Issue,
     LangCapability,
     ReviewCacheModel,
+    ScanMetadataModel,
     ScanDiff,
     ScanHistoryEntry,
     ScoreConfidenceDetector,
@@ -49,6 +50,7 @@ __all__ = [
     "LangCapability",
     "ReviewCacheModel",
     "IgnoreIntegrityModel",
+    "ScanMetadataModel",
     "StateModel",
     "ScanDiff",
     "get_state_dir",
@@ -57,6 +59,9 @@ __all__ = [
     "utc_now",
     "empty_state",
     "ensure_state_defaults",
+    "scan_metadata",
+    "scan_inventory_available",
+    "scan_metrics_available",
     "validate_state_invariants",
     "json_default",
     "migrate_state_keys",
@@ -65,6 +70,7 @@ __all__ = [
 _ALLOWED_ISSUE_STATUSES: set[str] = {
     *issue_status_tokens(),
 }
+_SCAN_METADATA_SOURCES = {"empty", "scan", "plan_reconstruction"}
 
 
 def get_state_dir() -> Path:
@@ -100,6 +106,11 @@ def empty_state() -> StateModel:
         "issues": {},
         "scan_coverage": {},
         "score_confidence": {},
+        "scan_metadata": {
+            "source": "empty",
+            "inventory_available": False,
+            "metrics_available": False,
+        },
         "subjective_integrity": {},
         "subjective_assessments": {},
     }
@@ -142,6 +153,33 @@ def migrate_state_keys(state: StateModel | dict[str, Any]) -> None:
                 _rename_key(ds, "issues", "failing")
 
 
+def _normalize_scan_metadata(state: StateModel | dict[str, Any]) -> None:
+    raw_metadata = state.get("scan_metadata")
+    metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+
+    raw_source = metadata.get("source")
+    source = raw_source if isinstance(raw_source, str) else ""
+    if state.get("last_scan"):
+        source = "scan"
+    elif source != "plan_reconstruction":
+        source = "empty"
+
+    normalized: ScanMetadataModel = {
+        "source": source,
+        "inventory_available": source in {"scan", "plan_reconstruction"},
+        "metrics_available": source == "scan",
+    }
+    if source == "plan_reconstruction":
+        normalized["plan_queue_available"] = bool(metadata.get("plan_queue_available"))
+        issue_count = metadata.get("reconstructed_issue_count", 0)
+        if isinstance(issue_count, int) and not isinstance(issue_count, bool):
+            normalized["reconstructed_issue_count"] = max(0, issue_count)
+        else:
+            normalized["reconstructed_issue_count"] = 0
+
+    state["scan_metadata"] = normalized
+
+
 def ensure_state_defaults(state: StateModel | dict) -> None:
     """Normalize loose/legacy state payloads to a valid base shape in-place."""
     migrate_state_keys(state)
@@ -162,6 +200,7 @@ def ensure_state_defaults(state: StateModel | dict) -> None:
         state["score_confidence"] = {}
     if not isinstance(state.get("subjective_integrity"), dict):
         state["subjective_integrity"] = {}
+    _normalize_scan_metadata(state)
 
     all_issues = state["issues"]
     to_remove: list[str] = []
@@ -213,6 +252,22 @@ def validate_state_invariants(state: StateModel) -> None:
         raise ValueError("state.issues must be a dict")
     if not isinstance(state.get("stats"), dict):
         raise ValueError("state.stats must be a dict")
+    metadata = state.get("scan_metadata")
+    if not isinstance(metadata, dict):
+        raise ValueError("state.scan_metadata must be a dict")
+    source = metadata.get("source")
+    if source not in _SCAN_METADATA_SOURCES:
+        raise ValueError(f"state.scan_metadata.source has invalid value {source!r}")
+    if not isinstance(metadata.get("inventory_available"), bool):
+        raise ValueError("state.scan_metadata.inventory_available must be a bool")
+    if not isinstance(metadata.get("metrics_available"), bool):
+        raise ValueError("state.scan_metadata.metrics_available must be a bool")
+    if source == "plan_reconstruction":
+        issue_count = metadata.get("reconstructed_issue_count", 0)
+        if not isinstance(issue_count, int) or isinstance(issue_count, bool) or issue_count < 0:
+            raise ValueError(
+                "state.scan_metadata.reconstructed_issue_count must be a non-negative int"
+            )
 
     all_issues = state["issues"]
     for issue_id, issue in all_issues.items():
@@ -234,3 +289,39 @@ def validate_state_invariants(state: StateModel) -> None:
             raise ValueError(
                 f"issue {issue_id!r} has invalid reopen_count {reopen_count!r}"
             )
+
+
+def scan_metadata(state: StateModel | dict[str, Any]) -> ScanMetadataModel:
+    """Return normalized scan metadata for capability-aware command logic."""
+    raw = state.get("scan_metadata")
+    if isinstance(raw, dict):
+        return cast(ScanMetadataModel, raw)
+    if state.get("last_scan"):
+        return {
+            "source": "scan",
+            "inventory_available": True,
+            "metrics_available": True,
+        }
+    marker = state.get("_saved_plan_recovery")
+    if isinstance(marker, dict) and marker.get("active"):
+        issue_count = marker.get("reconstructed_issue_count", 0)
+        if not isinstance(issue_count, int) or isinstance(issue_count, bool) or issue_count < 0:
+            issue_count = 0
+        return {
+            "source": "plan_reconstruction",
+            "inventory_available": True,
+            "metrics_available": False,
+            "plan_queue_available": True,
+            "reconstructed_issue_count": issue_count,
+        }
+    return empty_state()["scan_metadata"]
+
+
+def scan_inventory_available(state: StateModel | dict[str, Any]) -> bool:
+    """Whether command consumers can rely on the current issue inventory."""
+    return bool(scan_metadata(state).get("inventory_available"))
+
+
+def scan_metrics_available(state: StateModel | dict[str, Any]) -> bool:
+    """Whether scan-derived metrics/timestamps are present."""
+    return bool(scan_metadata(state).get("metrics_available"))

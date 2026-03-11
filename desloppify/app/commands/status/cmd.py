@@ -90,6 +90,7 @@ def _status_json_payload(
         "suppression": suppression,
         "scan_count": state.get("scan_count", 0),
         "last_scan": state.get("last_scan"),
+        "scan_metadata": state.get("scan_metadata", {}),
     }
 
 __all__ = ["cmd_status"]

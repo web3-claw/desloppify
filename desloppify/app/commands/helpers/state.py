@@ -13,6 +13,10 @@ from desloppify.engine._state.recovery import (
     recover_state_from_saved_plan,
     saved_plan_review_ids,
 )
+from desloppify.engine._state.schema import (
+    scan_inventory_available,
+    scan_metrics_available,
+)
 
 
 def _sole_existing_lang_state_file() -> Path | None:
@@ -56,16 +60,51 @@ def state_path(args: argparse.Namespace) -> Path | None:
     return None
 
 
+def require_issue_inventory(state: dict) -> bool:
+    """Return True when command consumers can rely on the issue inventory."""
+    if bool(state.get("last_scan")) or is_saved_plan_recovery_state(state):
+        return True
+    if not scan_inventory_available(state):
+        print(colorize("No scans yet. Run: desloppify scan", "yellow"))
+        return False
+    return True
+
+
 def require_completed_scan(state: dict) -> bool:
     """Return True when the state contains at least one completed scan."""
     has_completed_scan = bool(state.get("last_scan")) or is_saved_plan_recovery_state(state)
-    if not has_completed_scan:
+    if not has_completed_scan and not scan_inventory_available(state):
         print(colorize("No scans yet. Run: desloppify scan", "yellow"))
-    elif not state.get("last_scan") and is_saved_plan_recovery_state(state):
+        return False
+    if not state.get("last_scan") and (
+        is_saved_plan_recovery_state(state) or scan_inventory_available(state)
+    ):
         print(colorize("No scan state found; continuing from saved plan metadata only.", "yellow"))
-    return has_completed_scan
+    return True
+
+
+def require_scan_metrics(state: dict) -> bool:
+    """Return True when real scan-derived metrics are available."""
+    if bool(state.get("last_scan")):
+        return True
+    if not scan_metrics_available(state):
+        print(colorize("No completed scan metrics yet. Run: desloppify scan", "yellow"))
+        return False
+    return True
 
 
 def _saved_plan_review_ids(plan: dict | None) -> list[str]:
     """Backward-compatible alias for saved review/concerns recovery IDs."""
     return saved_plan_review_ids(plan)
+
+
+__all__ = [
+    "_saved_plan_review_ids",
+    "has_saved_plan_without_scan",
+    "recover_state_from_saved_plan",
+    "require_completed_scan",
+    "require_issue_inventory",
+    "require_scan_metrics",
+    "saved_plan_review_ids",
+    "state_path",
+]

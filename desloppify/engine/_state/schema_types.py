@@ -27,6 +27,14 @@ from desloppify.engine._state.schema_types_review import (
 from desloppify.languages.framework import ScanCoverageRecord
 
 
+class ScanMetadataModel(TypedDict, total=False):
+    source: Required[str]
+    inventory_available: Required[bool]
+    metrics_available: Required[bool]
+    plan_queue_available: bool
+    reconstructed_issue_count: int
+
+
 class StateModel(TypedDict, total=False):
     version: Required[int]
     created: Required[str]
@@ -61,6 +69,7 @@ class StateModel(TypedDict, total=False):
     attestation_log: list[AttestationLogEntry]
     concern_dismissals: dict[str, ConcernDismissal]
     _plan_start_scores_for_reveal: dict[str, Any]
+    scan_metadata: Required[ScanMetadataModel]
 
 
 class ScanDiff(TypedDict):
@@ -97,6 +106,7 @@ __all__ = [
     "LangCapability",
     "ReviewCacheModel",
     "IgnoreIntegrityModel",
+    "ScanMetadataModel",
     "StateModel",
     "ScanDiff",
 ]

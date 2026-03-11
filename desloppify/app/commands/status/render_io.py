@@ -122,6 +122,7 @@ def write_status_query(request: StatusQueryRequest) -> None:
             "stats": stats,
             "scan_count": state.get("scan_count", 0),
             "last_scan": state.get("last_scan"),
+            "scan_metadata": state.get("scan_metadata", {}),
             "by_tier": by_tier,
             "ignores": ignores,
             "suppression": suppression,

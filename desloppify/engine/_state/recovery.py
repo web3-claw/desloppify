@@ -1,9 +1,8 @@
-"""Recovery helpers for missing scan state with a surviving saved plan."""
+"""State reconstruction helpers for missing scan state with a surviving plan."""
 
 from __future__ import annotations
 
-
-_RECOVERY_MARKER = "_saved_plan_recovery"
+from desloppify.engine._state.schema import ensure_state_defaults
 
 
 def _append_review_id(
@@ -75,7 +74,8 @@ def saved_plan_open_review_ids(plan: dict | None) -> list[str]:
 
 def has_saved_plan_without_scan(state: dict, plan: dict | None) -> bool:
     """Whether a saved plan can be resumed without a current scan state."""
-    if state.get("last_scan"):
+    metadata = state.get("scan_metadata")
+    if isinstance(metadata, dict) and metadata.get("source") == "scan":
         return False
     if not isinstance(plan, dict):
         return False
@@ -89,11 +89,17 @@ def has_saved_plan_without_scan(state: dict, plan: dict | None) -> bool:
     )
 
 
+def is_saved_plan_recovery_state(state: dict | None) -> bool:
+    """Return True when state was reconstructed from saved plan metadata."""
+    if not isinstance(state, dict):
+        return False
+    marker = state.get("_saved_plan_recovery")
+    return isinstance(marker, dict) and bool(marker.get("active"))
+
+
 def _hydrate_saved_issue_ids(
     state: dict,
     issue_ids: list[str],
-    *,
-    mode: str,
 ) -> dict:
     recovered = dict(state)
     issues = state.get("issues", {})
@@ -119,11 +125,19 @@ def _hydrate_saved_issue_ids(
         }
 
     recovered["issues"] = recovered_issues
-    recovered[_RECOVERY_MARKER] = {
-        "active": True,
-        "mode": mode,
-        "issue_count": len(issue_ids),
+    recovered["scan_metadata"] = {
+        "source": "plan_reconstruction",
+        "inventory_available": bool(issue_ids),
+        "metrics_available": False,
+        "plan_queue_available": bool(issue_ids),
+        "reconstructed_issue_count": len(issue_ids),
     }
+    recovered["_saved_plan_recovery"] = {
+        "active": True,
+        "mode": "queue_only",
+        "reconstructed_issue_count": len(issue_ids),
+    }
+    ensure_state_defaults(recovered)
     return recovered
 
 
@@ -131,36 +145,20 @@ def recover_state_from_saved_plan(state: dict, plan: dict | None) -> dict:
     """Hydrate all review IDs recoverable from a saved plan."""
     if not has_saved_plan_without_scan(state, plan):
         return state
-    return _hydrate_saved_issue_ids(
-        state,
-        saved_plan_review_ids(plan),
-        mode="all_saved_references",
-    )
+    return _hydrate_saved_issue_ids(state, saved_plan_review_ids(plan))
 
 
-def recover_runtime_state_from_saved_plan(state: dict, plan: dict | None) -> dict:
+def reconstruct_state_from_saved_plan(state: dict, plan: dict | None) -> dict:
     """Hydrate only the review IDs still present in the live queue."""
     if not has_saved_plan_without_scan(state, plan):
         return state
-    return _hydrate_saved_issue_ids(
-        state,
-        saved_plan_open_review_ids(plan),
-        mode="queue_only",
-    )
-
-
-def is_saved_plan_recovery_state(state: dict | None) -> bool:
-    """Whether state was synthesized from saved plan metadata."""
-    if not isinstance(state, dict):
-        return False
-    marker = state.get(_RECOVERY_MARKER)
-    return isinstance(marker, dict) and bool(marker.get("active"))
+    return _hydrate_saved_issue_ids(state, saved_plan_open_review_ids(plan))
 
 
 __all__ = [
     "has_saved_plan_without_scan",
     "is_saved_plan_recovery_state",
-    "recover_runtime_state_from_saved_plan",
+    "reconstruct_state_from_saved_plan",
     "recover_state_from_saved_plan",
     "saved_plan_open_review_ids",
     "saved_plan_review_ids",

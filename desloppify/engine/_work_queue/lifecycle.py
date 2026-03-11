@@ -9,10 +9,17 @@ from desloppify.engine._work_queue.types import WorkQueueItem
 # Must be a subset of NON_OBJECTIVE_DETECTORS.
 ENDGAME_ONLY_DETECTORS: frozenset[str] = frozenset({"subjective_review"})
 
-assert ENDGAME_ONLY_DETECTORS <= NON_OBJECTIVE_DETECTORS, (
-    f"ENDGAME_ONLY_DETECTORS has items not in NON_OBJECTIVE_DETECTORS: "
-    f"{ENDGAME_ONLY_DETECTORS - NON_OBJECTIVE_DETECTORS}"
-)
+
+def _validate_endgame_only_detectors() -> None:
+    missing = ENDGAME_ONLY_DETECTORS - NON_OBJECTIVE_DETECTORS
+    if missing:
+        raise RuntimeError(
+            "ENDGAME_ONLY_DETECTORS has items not in NON_OBJECTIVE_DETECTORS: "
+            f"{missing}"
+        )
+
+
+_validate_endgame_only_detectors()
 
 
 def _has_objective_items(items: list[WorkQueueItem]) -> bool:

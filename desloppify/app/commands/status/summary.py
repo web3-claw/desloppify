@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from desloppify import state as state_mod
 from desloppify.base.output.terminal import LOC_COMPACT_THRESHOLD, colorize
+from desloppify.engine._state.schema import scan_metadata
 
 
 def score_summary_lines(
@@ -59,6 +60,26 @@ def score_summary_lines(
 
 def print_scan_metrics(state: dict) -> None:
     """Print aggregate codebase metrics from the last scan."""
+    metadata = scan_metadata(state)
+    if not metadata.get("metrics_available"):
+        if metadata.get("source") == "plan_reconstruction":
+            reconstructed = int(metadata.get("reconstructed_issue_count", 0) or 0)
+            print(
+                colorize(
+                    "  Scan metrics unavailable · "
+                    f"reconstructed {reconstructed} open review item(s) from saved plan",
+                    "dim",
+                )
+            )
+            return
+        print(
+            colorize(
+                f"  Scans: {state.get('scan_count', 0)} | Last: {state.get('last_scan', 'never')}",
+                "dim",
+            )
+        )
+        return
+
     metrics = state.get("codebase_metrics", {})
     total_files = sum(m.get("total_files", 0) for m in metrics.values())
     total_loc = sum(m.get("total_loc", 0) for m in metrics.values())
@@ -73,12 +94,7 @@ def print_scan_metrics(state: dict) -> None:
             )
         )
         return
-    print(
-        colorize(
-            f"  Scans: {state.get('scan_count', 0)} | Last: {state.get('last_scan', 'never')}",
-            "dim",
-        )
-    )
+    print(colorize(f"  Scans: {state.get('scan_count', 0)} | Last: {state.get('last_scan', 'never')}", "dim"))
 
 
 def print_scan_completeness(state: dict) -> None:

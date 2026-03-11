@@ -15,27 +15,11 @@ from desloppify.state import StateModel
 
 
 def _cluster_issue_ids(cluster: dict[str, Any]) -> list[str]:
-    """Return effective cluster members, including step-linked issue refs."""
-    ordered: list[str] = []
-    seen: set[str] = set()
-
-    def _append(raw_ids: object) -> None:
-        if not isinstance(raw_ids, list):
-            return
-        for raw_id in raw_ids:
-            if not isinstance(raw_id, str):
-                continue
-            issue_id = raw_id.strip()
-            if not issue_id or issue_id in seen:
-                continue
-            seen.add(issue_id)
-            ordered.append(issue_id)
-
-    _append(cluster.get("issue_ids"))
-    for step in cluster.get("action_steps", []):
-        if isinstance(step, dict):
-            _append(step.get("issue_refs"))
-    return ordered
+    """Return canonical cluster members after plan-load normalization."""
+    issue_ids = cluster.get("issue_ids", [])
+    if not isinstance(issue_ids, list):
+        return []
+    return [issue_id for issue_id in issue_ids if isinstance(issue_id, str) and issue_id]
 
 
 def new_item_ids(state: StateModel) -> set[str]:
