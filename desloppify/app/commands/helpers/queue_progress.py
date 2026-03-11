@@ -12,9 +12,10 @@ from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.plan_state import load_plan
 from desloppify.state_scoring import score_snapshot
-from desloppify.engine._work_queue import core as work_queue_core_mod
+from desloppify.engine._work_queue.core import QueueBuildOptions
 from desloppify.engine._work_queue.helpers import is_subjective_queue_item
 from desloppify.engine._work_queue.plan_order import collapse_clusters
+from desloppify.engine.planning.queue_policy import build_execution_queue
 from desloppify.app.commands.helpers.queue_progress_render import (
     format_plan_delta,
     format_queue_block,
@@ -106,9 +107,9 @@ def plan_aware_queue_breakdown(
     """
     effective_plan = context.plan if context is not None else plan
 
-    result = work_queue_core_mod.build_work_queue(
+    result = build_execution_queue(
         state,
-        options=work_queue_core_mod.QueueBuildOptions(
+        options=QueueBuildOptions(
             status="open",
             count=None,
             plan=effective_plan if context is None else None,

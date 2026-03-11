@@ -282,7 +282,7 @@ def test_plan_aware_queue_breakdown_basic():
         "skipped": {"c": {"kind": "temporary"}},
     }
     with patch(
-        "desloppify.engine._work_queue.core.build_work_queue",
+        "desloppify.app.commands.helpers.queue_progress.build_execution_queue",
         return_value=mock_result,
     ):
         breakdown = plan_aware_queue_breakdown({"issues": {}}, plan=plan)
@@ -299,7 +299,7 @@ def test_plan_aware_queue_breakdown_no_plan():
         "items": mock_items,
     }
     with patch(
-        "desloppify.engine._work_queue.core.build_work_queue",
+        "desloppify.app.commands.helpers.queue_progress.build_execution_queue",
         return_value=mock_result,
     ):
         breakdown = plan_aware_queue_breakdown({"issues": {}})
@@ -332,7 +332,7 @@ def test_plan_aware_queue_breakdown_with_focus():
         },
     }
     with patch(
-        "desloppify.engine._work_queue.core.build_work_queue",
+        "desloppify.app.commands.helpers.queue_progress.build_execution_queue",
         return_value=mock_result,
     ):
         breakdown = plan_aware_queue_breakdown(state, plan=plan)

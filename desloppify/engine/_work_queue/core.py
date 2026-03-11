@@ -79,8 +79,6 @@ class QueueBuildOptions:
     # Plan integration
     plan: dict | None = None
     include_skipped: bool = False
-    planned_only: bool = False
-    exclude_plan_tracked: bool = False
 
     # Pre-computed context (overrides plan)
     context: QueueContext | None = None
@@ -95,10 +93,32 @@ class WorkQueueResult(TypedDict):
     new_ids: set[str]
 
 
+class QueueVisibility:
+    """Named queue visibility modes for internal queue assembly."""
+
+    ALL = "all"
+    EXECUTION = "execution"
+    BACKLOG = "backlog"
+
+
 def build_work_queue(
     state: StateModel,
     *,
     options: QueueBuildOptions | None = None,
+) -> WorkQueueResult:
+    """Build the raw ranked work queue without execution/backlog filtering."""
+    return _build_work_queue_with_visibility(
+        state,
+        options=options,
+        visibility=QueueVisibility.ALL,
+    )
+
+
+def _build_work_queue_with_visibility(
+    state: StateModel,
+    *,
+    options: QueueBuildOptions | None = None,
+    visibility: str = QueueVisibility.ALL,
 ) -> WorkQueueResult:
     """Build a ranked work queue from state issues.
 
@@ -120,12 +140,7 @@ def build_work_queue(
     )
     items += _gather_subjective_items(state, opts, threshold)
     items += _gather_workflow_items(state, plan, status)
-    items = _filter_plan_visibility(
-        items,
-        plan,
-        planned_only=opts.planned_only,
-        exclude_plan_tracked=opts.exclude_plan_tracked,
-    )
+    items = _filter_plan_visibility(items, plan, visibility=visibility)
 
     # 2. Score
     enrich_with_impact(items, state.get("dimension_scores", {}))
@@ -251,18 +266,19 @@ def _filter_plan_visibility(
     items: list[WorkQueueItem],
     plan: dict | None,
     *,
-    planned_only: bool,
-    exclude_plan_tracked: bool,
+    visibility: str,
 ) -> list[WorkQueueItem]:
     """Apply plan-based visibility filtering for execution/backlog surfaces."""
+    if visibility == QueueVisibility.ALL:
+        return items
     if not plan:
         return items
     tracked_ids = _planned_item_ids(plan)
     if not tracked_ids:
-        return [] if planned_only else items
-    if planned_only:
+        return [] if visibility == QueueVisibility.EXECUTION else items
+    if visibility == QueueVisibility.EXECUTION:
         return [item for item in items if item["id"] in tracked_ids]
-    if exclude_plan_tracked:
+    if visibility == QueueVisibility.BACKLOG:
         return [item for item in items if item["id"] not in tracked_ids]
     return items
 
@@ -338,7 +354,9 @@ __all__ = [
     "ATTEST_EXAMPLE",
     "QueueBuildOptions",
     "QueueContext",
+    "QueueVisibility",
     "WorkQueueResult",
+    "_build_work_queue_with_visibility",
     "build_work_queue",
     "collapse_clusters",
     "group_queue_items",

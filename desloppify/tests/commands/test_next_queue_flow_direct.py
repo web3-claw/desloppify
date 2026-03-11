@@ -178,11 +178,15 @@ def test_build_and_render_queue_non_terminal_path_renders_items(monkeypatch) -> 
     assert user_messages
 
 
-def test_build_and_render_queue_uses_plan_tracked_mode_when_plan_exists(monkeypatch) -> None:
+def test_build_and_render_execution_queue_passes_queue_context_plan(monkeypatch) -> None:
     captured: dict[str, object] = {}
     monkeypatch.setattr(queue_flow_mod, "triage_guardrail_messages", lambda **_k: [])
     monkeypatch.setattr(queue_flow_mod, "target_strict_score_from_config", lambda _cfg: 95.0)
-    monkeypatch.setattr(queue_flow_mod, "queue_context", lambda *_a, **_k: SimpleNamespace())
+    monkeypatch.setattr(
+        queue_flow_mod,
+        "queue_context",
+        lambda *_a, **_k: SimpleNamespace(plan={"queue_order": ["x"]}),
+    )
     monkeypatch.setattr(queue_flow_mod, "_resolve_cluster_focus", lambda *_a, **_k: None)
     monkeypatch.setattr(queue_flow_mod, "_render_queue_header", lambda *_a, **_k: None)
     monkeypatch.setattr(queue_flow_mod, "_show_empty_queue", lambda *_a, **_k: False)
@@ -235,10 +239,10 @@ def test_build_and_render_queue_uses_plan_tracked_mode_when_plan_exists(monkeypa
     )
 
     def _build_queue(_state, *, options):
-        captured["planned_only"] = options.planned_only
+        captured["plan"] = options.context.plan
         return {"items": [{"id": "smells::a.py::x", "detector": "smells"}], "total": 1}
 
-    queue_flow_mod.build_and_render_queue(
+    queue_flow_mod.build_and_render_execution_queue(
         _args(),
         state={"issues": {"x": {}}, "dimension_scores": {}, "scan_path": "."},
         config={},
@@ -248,7 +252,7 @@ def test_build_and_render_queue_uses_plan_tracked_mode_when_plan_exists(monkeypa
         write_query_fn=lambda _payload: None,
     )
 
-    assert captured["planned_only"] is True
+    assert captured["plan"] == {"queue_order": ["x"]}
 
 
 def test_build_and_render_queue_backlog_mode_hides_plan_prompt(monkeypatch) -> None:

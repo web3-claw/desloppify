@@ -9,15 +9,16 @@ from desloppify.engine._work_queue.context import (
     queue_context,
     resolve_plan_load_status,
 )
-from desloppify.engine._work_queue.core import (
-    QueueBuildOptions,
-    build_work_queue,
-)
 from desloppify.engine._work_queue.plan_order import collapse_clusters
+from desloppify.engine._work_queue.core import QueueBuildOptions
+from desloppify.engine.planning.queue_policy import build_execution_queue
 
 from .plan_load import warn_plan_load_degraded_once
 
 _logger = logging.getLogger(__name__)
+
+# Backward-compatible test seam: queue-order enforcement now uses the execution queue.
+build_work_queue = build_execution_queue
 
 
 def _front_item_ids(front_item: dict) -> tuple[str, set[str]]:

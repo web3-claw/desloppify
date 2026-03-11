@@ -40,18 +40,10 @@ def test_cmd_backlog_uses_backlog_queue(monkeypatch) -> None:
     monkeypatch.setattr(backlog_mod, "check_config_staleness", lambda _config: None)
 
     def _build_and_render(*_args, **kwargs):
-        captured["command_name"] = kwargs["command_name"]
-        captured["show_plan_context"] = kwargs["show_plan_context"]
-        captured["collapse_plan_clusters"] = kwargs["collapse_plan_clusters"]
-        captured["show_execution_prompt"] = kwargs["show_execution_prompt"]
         captured["build_work_queue_fn"] = kwargs["build_work_queue_fn"]
 
     monkeypatch.setattr(backlog_mod, "build_and_render_queue", _build_and_render)
 
     backlog_mod.cmd_backlog(_args())
 
-    assert captured["command_name"] == "backlog"
-    assert captured["show_plan_context"] is False
-    assert captured["collapse_plan_clusters"] is False
-    assert captured["show_execution_prompt"] is False
     assert captured["build_work_queue_fn"] is backlog_mod.build_backlog_queue

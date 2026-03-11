@@ -13,7 +13,10 @@ from desloppify.base.tooling import check_config_staleness
 from desloppify.engine.plan_state import load_plan
 from desloppify.engine.planning.queue_policy import build_backlog_queue
 
-from desloppify.app.commands.next.queue_flow import build_and_render_queue
+from desloppify.app.commands.next.queue_flow import build_and_render_backlog_queue
+
+# Backward-compatible test seam for the backlog flow.
+build_and_render_queue = build_and_render_backlog_queue
 
 
 def cmd_backlog(args: argparse.Namespace) -> None:
@@ -36,11 +39,7 @@ def cmd_backlog(args: argparse.Namespace) -> None:
         load_plan_fn=load_plan,
         build_work_queue_fn=build_backlog_queue,
         write_query_fn=write_query,
-        command_name="backlog",
-        show_plan_context=False,
-        collapse_plan_clusters=False,
-        show_execution_prompt=False,
     )
 
 
-__all__ = ["cmd_backlog"]
+__all__ = ["build_and_render_queue", "cmd_backlog"]

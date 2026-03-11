@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from desloppify.engine.planning.queue_policy import build_backlog_queue
+from desloppify.engine.planning.queue_policy import (
+    build_backlog_queue,
+    build_execution_queue,
+)
 from desloppify.engine._work_queue.core import QueueBuildOptions
 from desloppify.engine._work_queue.core import build_work_queue as _build_work_queue
 
@@ -258,7 +261,7 @@ def test_force_visible_triage_stage_bypasses_objective_gate():
     assert "smells::src/a.py::x" in ids
 
 
-def test_planned_only_queue_hides_unplanned_state_issues():
+def test_execution_queue_hides_unplanned_state_issues():
     """Execution queues should only surface work explicitly tracked by the plan."""
     from desloppify.engine._plan.schema import empty_plan
 
@@ -271,12 +274,13 @@ def test_planned_only_queue_hides_unplanned_state_issues():
     plan = empty_plan()
     plan["queue_order"] = ["smells::src/a.py::planned"]
 
-    queue = build_work_queue(
+    queue = build_execution_queue(
         state,
-        count=None,
-        include_subjective=False,
-        plan=plan,
-        planned_only=True,
+        options=QueueBuildOptions(
+            count=None,
+            include_subjective=False,
+            plan=plan,
+        ),
     )
     ids = [item["id"] for item in queue["items"]]
     assert ids == ["smells::src/a.py::planned"]

@@ -8,7 +8,9 @@ from desloppify.base.config import DEFAULT_TARGET_STRICT_SCORE
 from desloppify.engine._state.schema import StateModel
 from desloppify.engine._work_queue.core import (
     QueueBuildOptions,
+    QueueVisibility,
     WorkQueueResult,
+    _build_work_queue_with_visibility,
     build_work_queue,
 )
 
@@ -76,9 +78,10 @@ def build_execution_queue(
     options = options or QueueBuildOptions()
     if not _queue_shaping_plan_present(_queue_plan_from_options(options)):
         return build_work_queue(state, options=options)
-    return build_work_queue(
+    return _build_work_queue_with_visibility(
         state,
-        options=replace(options, planned_only=True),
+        options=replace(options),
+        visibility=QueueVisibility.EXECUTION,
     )
 
 
@@ -91,9 +94,10 @@ def build_backlog_queue(
     options = options or QueueBuildOptions()
     if not _queue_shaping_plan_present(_queue_plan_from_options(options)):
         return build_work_queue(state, options=options)
-    return build_work_queue(
+    return _build_work_queue_with_visibility(
         state,
-        options=replace(options, exclude_plan_tracked=True),
+        options=replace(options),
+        visibility=QueueVisibility.BACKLOG,
     )
 
 
