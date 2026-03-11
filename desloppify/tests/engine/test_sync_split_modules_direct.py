@@ -705,6 +705,15 @@ def test_lifecycle_filter_forces_triage_when_only_subjective_clusters() -> None:
     assert filtered == [items[1]]
 
 
+def test_resolve_lifecycle_phase_corrects_stale_persisted_execute_state() -> None:
+    items = [{"kind": "workflow_action", "id": "workflow::run-scan"}]
+    plan = {"refresh_state": {"lifecycle_phase": "execute"}}
+
+    phase = lifecycle_mod.resolve_lifecycle_phase(items, plan=plan)
+
+    assert phase == "scan"
+
+
 def test_postflight_non_objective_detectors_match_non_objective_policy() -> None:
     """Post-flight non-objective detectors should match the shared policy."""
     from desloppify.engine.plan_queue import NON_OBJECTIVE_DETECTORS

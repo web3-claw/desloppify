@@ -149,7 +149,7 @@ def _build_work_queue_with_visibility(
     new_ids, skipped = _plan_presort(items, state, plan)
 
     # 4. Lifecycle filter — endgame-only items filtered when objective work remains
-    items = apply_lifecycle_filter(items)
+    items = apply_lifecycle_filter(items, plan=plan)
 
     # 5. Sort & plan post-processing
     items.sort(key=item_sort_key)

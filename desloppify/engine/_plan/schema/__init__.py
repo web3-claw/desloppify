@@ -155,6 +155,7 @@ class EpicTriageMeta(TypedDict, total=False):
 class RefreshState(TypedDict, total=False):
     """Metadata for the post-flight refresh pipeline."""
 
+    lifecycle_phase: str
     postflight_scan_completed_at_scan_count: int
     pending_import_scores: dict[str, Any]
 

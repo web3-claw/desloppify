@@ -17,6 +17,41 @@ from desloppify.engine.plan_triage import (
 )
 
 
+def _has_postflight_review_work(state: dict, *, policy) -> bool:
+    issues = state.get("issues", {})
+    if any(
+        isinstance(issue, dict)
+        and issue.get("status") == "open"
+        and issue.get("detector") in {"review", "concerns", "subjective_review"}
+        for issue in issues.values()
+    ):
+        return True
+    return bool(policy.stale_ids or policy.under_target_ids)
+
+
+def _sync_lifecycle_phase_after_import(plan: dict, state: dict, *, policy) -> bool:
+    return plan_queue_mod.sync_lifecycle_phase(
+        plan,
+        has_initial_reviews=bool(policy.unscored_ids),
+        has_objective_backlog=bool(policy.has_objective_backlog),
+        has_postflight_review=_has_postflight_review_work(state, policy=policy),
+        has_postflight_workflow=any(
+            item_id in plan.get("queue_order", [])
+            for item_id in (
+                "workflow::import-scores",
+                "workflow::communicate-score",
+                "workflow::score-checkpoint",
+                "workflow::create-plan",
+            )
+        ),
+        has_triage=any(
+            isinstance(item_id, str) and item_id.startswith("triage::")
+            for item_id in plan.get("queue_order", [])
+        ),
+        has_deferred=False,
+    )[1]
+
+
 def _print_review_import_sync(
     state: dict,
     result: plan_queue_mod.ReviewImportSyncResult,
@@ -191,6 +226,8 @@ def sync_plan_after_import(
                 dirty = True
 
         if dirty:
+            if _sync_lifecycle_phase_after_import(plan, state, policy=policy):
+                dirty = True
             if communicate_result.changes:
                 plan_queue_mod.append_log_entry(
                     plan,

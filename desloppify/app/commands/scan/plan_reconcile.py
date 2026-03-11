@@ -14,6 +14,7 @@ from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
 from desloppify.base.output.fallbacks import log_best_effort_failure
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.plan_queue import (
+    LIFECYCLE_PHASE_SCAN,
     SYNTHETIC_PREFIXES,
     ScoreSnapshot,
     WORKFLOW_COMMUNICATE_SCORE_ID,
@@ -25,6 +26,7 @@ from desloppify.engine.plan_queue import (
     mark_postflight_scan_completed,
     reconcile_plan_after_scan,
     save_plan,
+    sync_lifecycle_phase,
     sync_communicate_score_needed,
     sync_create_plan_needed,
     sync_subjective_dimensions,
@@ -388,6 +390,69 @@ def _sync_postflight_scan_completion_and_log(
     return changed
 
 
+def _has_postflight_review_work(
+    state: state_mod.StateModel,
+    *,
+    policy,
+) -> bool:
+    issues = state.get("issues", {})
+    has_review_like_issue = any(
+        isinstance(issue, dict)
+        and issue.get("status") == "open"
+        and issue.get("detector") in {"review", "concerns", "subjective_review"}
+        for issue in issues.values()
+    )
+    if has_review_like_issue:
+        return True
+    return bool(policy.stale_ids or policy.under_target_ids)
+
+
+def _has_postflight_workflow_items(plan: dict[str, object]) -> bool:
+    order = plan.get("queue_order", [])
+    return any(
+        item_id in order
+        for item_id in (
+            "workflow::import-scores",
+            "workflow::communicate-score",
+            "workflow::score-checkpoint",
+            "workflow::create-plan",
+        )
+    )
+
+
+def _has_triage_items(plan: dict[str, object]) -> bool:
+    return any(
+        isinstance(item_id, str) and item_id.startswith("triage::")
+        for item_id in plan.get("queue_order", [])
+    )
+
+
+def _sync_lifecycle_phase_and_log(
+    plan: dict[str, object],
+    state: state_mod.StateModel,
+    *,
+    policy,
+) -> bool:
+    has_deferred = build_deferred_disposition_item(plan) is not None
+    phase, changed = sync_lifecycle_phase(
+        plan,
+        has_initial_reviews=bool(policy.unscored_ids),
+        has_objective_backlog=bool(policy.has_objective_backlog),
+        has_postflight_review=_has_postflight_review_work(state, policy=policy),
+        has_postflight_workflow=_has_postflight_workflow_items(plan),
+        has_triage=_has_triage_items(plan),
+        has_deferred=has_deferred,
+    )
+    if changed:
+        append_log_entry(
+            plan,
+            "sync_lifecycle_phase",
+            actor="system",
+            detail={"phase": phase},
+        )
+    return changed
+
+
 def _sync_post_scan_without_policy(
     *,
     plan: dict[str, object],
@@ -469,6 +534,8 @@ def _sync_post_scan_with_policy(
             dirty = True
         if _sync_postflight_scan_completion_and_log(plan, state):
             dirty = True
+    if _sync_lifecycle_phase_and_log(plan, state, policy=policy):
+        dirty = True
     return dirty
 
 
