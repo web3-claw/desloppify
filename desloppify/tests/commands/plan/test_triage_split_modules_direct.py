@@ -228,33 +228,35 @@ def test_confirmation_modules_stage_presence_guards(capsys) -> None:
 
 
 def test_confirmation_pipeline_structures_enrich_level_results(monkeypatch) -> None:
+    import desloppify.app.commands.plan.triage.validation.enrich_quality as enrich_quality_mod
+
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_underspecified_steps",
         lambda _plan: [("cluster-a", 2, 4)],
     )
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_with_bad_paths",
         lambda _plan, _root: [("cluster-a", 1, ["src/missing.py"])],
     )
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_without_effort",
         lambda _plan: [("cluster-a", 1, 4)],
     )
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_missing_issue_refs",
         lambda _plan: [("cluster-a", 3, 4)],
     )
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_with_vague_detail",
         lambda _plan, _root: [("cluster-a", 2, "Fix")],
     )
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_referencing_skipped_issues",
         lambda _plan: [("cluster-a", 2, ["review::a.py::id1"])],
     )
@@ -278,13 +280,15 @@ def test_confirmation_pipeline_structures_enrich_level_results(monkeypatch) -> N
 
 
 def test_confirmation_pipeline_can_skip_stale_issue_ref_warnings(monkeypatch) -> None:
-    monkeypatch.setattr(stage_validation_mod, "_underspecified_steps", lambda _plan: [])
-    monkeypatch.setattr(stage_validation_mod, "_steps_with_bad_paths", lambda _plan, _root: [])
-    monkeypatch.setattr(stage_validation_mod, "_steps_without_effort", lambda _plan: [])
-    monkeypatch.setattr(stage_validation_mod, "_steps_missing_issue_refs", lambda _plan: [])
-    monkeypatch.setattr(stage_validation_mod, "_steps_with_vague_detail", lambda _plan, _root: [])
+    import desloppify.app.commands.plan.triage.validation.enrich_quality as enrich_quality_mod
+
+    monkeypatch.setattr(enrich_quality_mod, "_underspecified_steps", lambda _plan: [])
+    monkeypatch.setattr(enrich_quality_mod, "_steps_with_bad_paths", lambda _plan, _root: [])
+    monkeypatch.setattr(enrich_quality_mod, "_steps_without_effort", lambda _plan: [])
+    monkeypatch.setattr(enrich_quality_mod, "_steps_missing_issue_refs", lambda _plan: [])
+    monkeypatch.setattr(enrich_quality_mod, "_steps_with_vague_detail", lambda _plan, _root: [])
     monkeypatch.setattr(
-        stage_validation_mod,
+        enrich_quality_mod,
         "_steps_referencing_skipped_issues",
         lambda _plan: [("cluster-a", 1, ["review::a.py::id1"])],
     )
@@ -364,33 +368,6 @@ def test_orchestrator_common_helpers(monkeypatch) -> None:
 
     stamp = orchestrator_common_mod.run_stamp()
     assert len(stamp) == 15
-
-    saved: list[dict] = []
-    entries: list[tuple[str, dict]] = []
-    monkeypatch.setattr(orchestrator_common_mod, "has_triage_in_queue", lambda _plan: False)
-    monkeypatch.setattr(
-        orchestrator_common_mod,
-        "inject_triage_stages",
-        lambda plan: plan.setdefault("queue_order", []).append("triage::observe"),
-    )
-    plan = {"queue_order": []}
-    services = SimpleNamespace(
-        save_plan=lambda p: saved.append(p),
-        append_log_entry=lambda _plan, action, **kwargs: entries.append((action, kwargs["detail"])),
-    )
-    updated = orchestrator_common_mod.ensure_triage_started(plan, services, runner="codex")
-    assert "triage::observe" in updated["queue_order"]
-    assert saved
-    assert entries == [
-        (
-            "triage_auto_start",
-            {
-                "source": "runner_auto_start",
-                "runner": "codex",
-                "injected_stage_ids": list(orchestrator_common_mod.TRIAGE_STAGE_IDS),
-            },
-        )
-    ]
 
 
 def test_lifecycle_ensure_triage_started_handles_active_blocked_and_started() -> None:

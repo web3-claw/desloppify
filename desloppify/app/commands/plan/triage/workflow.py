@@ -18,7 +18,7 @@ from .runner.orchestrator_common import parse_only_stages
 from .runner.stage_prompts import cmd_stage_prompt
 from .services import TriageServices
 from .stage_completion_commands import cmd_confirm_existing, cmd_triage_complete
-from .stages import commands as _flow_mod
+from .stages.commands import run_stage_command
 
 
 def _cmd_triage_start(
@@ -126,30 +126,6 @@ def _run_dry_run(
     print(prompt)
 
 
-def _run_stage_command(
-    args: argparse.Namespace,
-    *,
-    stage: str | None,
-    services: TriageServices,
-) -> bool:
-    if stage == "observe":
-        _flow_mod.cmd_stage_observe(args, services=services)
-        return True
-    if stage == "reflect":
-        _flow_mod.cmd_stage_reflect(args, services=services)
-        return True
-    if stage == "organize":
-        _flow_mod.cmd_stage_organize(args, services=services)
-        return True
-    if stage == "enrich":
-        _flow_mod.cmd_stage_enrich(args, services=services)
-        return True
-    if stage == "sense-check":
-        _flow_mod.cmd_stage_sense_check(args, services=services)
-        return True
-    return False
-
-
 def run_triage_workflow(
     args: argparse.Namespace,
     *,
@@ -182,7 +158,7 @@ def run_triage_workflow(
         return
 
     stage = getattr(args, "stage", None)
-    if _run_stage_command(args, stage=stage, services=services):
+    if run_stage_command(stage, args, services=services):
         return
 
     if getattr(args, "dry_run", False):

@@ -10,6 +10,7 @@ from pathlib import Path
 from desloppify.base.output.terminal import colorize
 
 from .stages.records import record_sense_check_stage, resolve_reusable_report
+from .validation.enrich_quality import evaluate_enrich_quality
 from .validation.enrich_checks import (
     _steps_missing_issue_refs,
     _steps_with_bad_paths,
@@ -74,31 +75,17 @@ def run_stage_sense_check(
         from desloppify.base.discovery.paths import get_project_root
 
     repo_root = get_project_root()
-    problems: list[str] = []
-
-    underspec = resolved_deps.underspecified_steps(plan)
-    if underspec:
-        total_bare = sum(n for _, n, _ in underspec)
-        problems.append(f"{total_bare} step(s) lack detail or issue_refs")
-
-    bad_paths = resolved_deps.steps_with_bad_paths(plan, repo_root)
-    if bad_paths:
-        total_bad = sum(len(bp) for _, _, bp in bad_paths)
-        problems.append(f"{total_bad} file path(s) don't exist on disk")
-
-    untagged = resolved_deps.steps_without_effort(plan)
-    if untagged:
-        total_missing = sum(n for _, n, _ in untagged)
-        problems.append(f"{total_missing} step(s) have no effort tag")
-
-    no_refs = resolved_deps.steps_missing_issue_refs(plan)
-    if no_refs:
-        total_missing = sum(n for _, n, _ in no_refs)
-        problems.append(f"{total_missing} step(s) have no issue_refs")
-
-    vague = resolved_deps.steps_with_vague_detail(plan, repo_root)
-    if vague:
-        problems.append(f"{len(vague)} step(s) have vague detail")
+    quality_report = evaluate_enrich_quality(
+        plan,
+        repo_root,
+        phase_label="sense-check",
+        bad_paths_severity="failure",
+        missing_effort_severity="failure",
+        include_missing_issue_refs=True,
+        include_vague_detail=True,
+        stale_issue_refs_severity=None,
+    )
+    problems = [issue.message for issue in quality_report.failures]
 
     if problems:
         print(resolved_deps.colorize("  Cannot record sense-check — plan still has issues:", "red"))
@@ -182,4 +169,18 @@ def run_stage_sense_check(
         print(resolved_deps.colorize("    desloppify plan triage --confirm sense-check", "dim"))
 
 
-__all__ = ["record_sense_check_stage", "run_stage_sense_check", "SenseCheckStageDeps"]
+def cmd_stage_sense_check(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for sense-check stage recording."""
+    run_stage_sense_check(args, services=services)
+
+
+__all__ = [
+    "SenseCheckStageDeps",
+    "cmd_stage_sense_check",
+    "record_sense_check_stage",
+    "run_stage_sense_check",
+]

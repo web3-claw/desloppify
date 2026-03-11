@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
 
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
@@ -15,31 +14,11 @@ from .shared import (
     finalize_stage_confirmation,
 )
 from ..services import TriageServices, default_triage_services
-
-
-@dataclass(frozen=True)
-class _ConfirmationCheckIssue:
-    code: str
-    total: int
-    rows: list[tuple]
-
-
-@dataclass(frozen=True)
-class _ConfirmationCheckReport:
-    failures: list[_ConfirmationCheckIssue]
-    warnings: list[_ConfirmationCheckIssue]
-
-    def failure(self, code: str) -> _ConfirmationCheckIssue | None:
-        for issue in self.failures:
-            if issue.code == code:
-                return issue
-        return None
-
-    def warning(self, code: str) -> _ConfirmationCheckIssue | None:
-        for issue in self.warnings:
-            if issue.code == code:
-                return issue
-        return None
+from ..validation.enrich_quality import (
+    EnrichQualityIssue as _ConfirmationCheckIssue,
+    EnrichQualityReport as _ConfirmationCheckReport,
+    evaluate_enrich_quality,
+)
 
 
 def _print_confirmation_failure(
@@ -63,83 +42,18 @@ def _collect_enrich_level_confirmation_checks(
     *,
     include_stale_issue_ref_warning: bool,
 ) -> _ConfirmationCheckReport:
-    from ..validation.core import (
-        _steps_missing_issue_refs,
-        _steps_referencing_skipped_issues,
-        _steps_with_bad_paths,
-        _steps_with_vague_detail,
-        _steps_without_effort,
-        _underspecified_steps,
-    )
     from desloppify.base.discovery.paths import get_project_root
 
-    repo_root = get_project_root()
-
-    failures: list[_ConfirmationCheckIssue] = []
-    warnings: list[_ConfirmationCheckIssue] = []
-
-    underspec = _underspecified_steps(plan)
-    if underspec:
-        failures.append(
-            _ConfirmationCheckIssue(
-                code="underspecified",
-                total=sum(n for _, n, _ in underspec),
-                rows=underspec,
-            )
-        )
-
-    bad_paths = _steps_with_bad_paths(plan, repo_root)
-    if bad_paths:
-        failures.append(
-            _ConfirmationCheckIssue(
-                code="bad_paths",
-                total=sum(len(paths) for _, _, paths in bad_paths),
-                rows=bad_paths,
-            )
-        )
-
-    missing_effort = _steps_without_effort(plan)
-    if missing_effort:
-        failures.append(
-            _ConfirmationCheckIssue(
-                code="missing_effort",
-                total=sum(n for _, n, _ in missing_effort),
-                rows=missing_effort,
-            )
-        )
-
-    missing_refs = _steps_missing_issue_refs(plan)
-    if missing_refs:
-        failures.append(
-            _ConfirmationCheckIssue(
-                code="missing_issue_refs",
-                total=sum(n for _, n, _ in missing_refs),
-                rows=missing_refs,
-            )
-        )
-
-    vague_detail = _steps_with_vague_detail(plan, repo_root)
-    if vague_detail:
-        failures.append(
-            _ConfirmationCheckIssue(
-                code="vague_detail",
-                total=len(vague_detail),
-                rows=vague_detail,
-            )
-        )
-
-    if include_stale_issue_ref_warning:
-        stale_refs = _steps_referencing_skipped_issues(plan)
-        if stale_refs:
-            warnings.append(
-                _ConfirmationCheckIssue(
-                    code="stale_issue_refs",
-                    total=sum(len(ids) for _, _, ids in stale_refs),
-                    rows=stale_refs,
-                )
-            )
-
-    return _ConfirmationCheckReport(failures=failures, warnings=warnings)
+    return evaluate_enrich_quality(
+        plan,
+        get_project_root(),
+        phase_label="sense-check" if not include_stale_issue_ref_warning else "enrich",
+        bad_paths_severity="failure",
+        missing_effort_severity="failure",
+        include_missing_issue_refs=True,
+        include_vague_detail=True,
+        stale_issue_refs_severity="warning" if include_stale_issue_ref_warning else None,
+    )
 
 
 def _print_underspecified_rows(issue: _ConfirmationCheckIssue) -> None:

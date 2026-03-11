@@ -11,6 +11,7 @@ from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
 
 from .stages.records import record_enrich_stage, resolve_reusable_report
+from .validation.enrich_quality import evaluate_enrich_quality
 from .validation.enrich_checks import (
     _enrich_report_or_error,
     _require_organize_stage_for_enrich,
@@ -180,23 +181,18 @@ def _print_underspecified_step_error(
 
 def _print_enrich_warnings(
     *,
-    plan: dict,
+    report,
     deps: EnrichStageDeps,
 ) -> None:
-    get_project_root = deps.get_project_root
-    if get_project_root is None:
-        from desloppify.base.discovery.paths import get_project_root
-
-    bad_paths = deps.steps_with_bad_paths(plan, get_project_root())
+    bad_paths = report.warning("bad_paths")
     if bad_paths:
-        total_bad = sum(len(bp) for _, _, bp in bad_paths)
         print(
             deps.colorize(
-                f"  Warning: {total_bad} file path(s) in step details don't exist on disk:",
+                f"  Warning: {bad_paths.total} file path(s) in step details don't exist on disk:",
                 "yellow",
             )
         )
-        for name, step_num, paths in bad_paths[:5]:
+        for name, step_num, paths in bad_paths.rows[:5]:
             print(deps.colorize(f"    {name} step {step_num}: {', '.join(paths[:3])}", "yellow"))
         print(
             deps.colorize(
@@ -205,10 +201,9 @@ def _print_enrich_warnings(
             )
         )
 
-    untagged = deps.steps_without_effort(plan)
+    untagged = report.warning("missing_effort")
     if untagged:
-        total_missing = sum(n for _, n, _ in untagged)
-        print(deps.colorize(f"  Note: {total_missing} step(s) have no effort tag.", "yellow"))
+        print(deps.colorize(f"  Note: {untagged.total} step(s) have no effort tag.", "yellow"))
         print(
             deps.colorize(
                 "  Consider: desloppify plan cluster update <name> --update-step N --effort small",
@@ -259,15 +254,29 @@ def run_stage_enrich(
     ):
         return
 
-    underspec = resolved_deps.underspecified_steps(plan)
-    total_bare = sum(n for _, n, _ in underspec)
+    get_project_root = resolved_deps.get_project_root
+    if get_project_root is None:
+        from desloppify.base.discovery.paths import get_project_root
+
+    quality_report = evaluate_enrich_quality(
+        plan,
+        get_project_root(),
+        phase_label="enrich",
+        bad_paths_severity="warning",
+        missing_effort_severity="warning",
+        include_missing_issue_refs=False,
+        include_vague_detail=False,
+        stale_issue_refs_severity=None,
+    )
+    underspec = quality_report.failure("underspecified")
+    total_bare = underspec.total if underspec else 0
 
     if underspec:
-        _print_underspecified_step_error(underspec, deps=resolved_deps)
+        _print_underspecified_step_error(underspec.rows, deps=resolved_deps)
         return
 
     print(resolved_deps.colorize("  All steps have detail or issue_refs.", "green"))
-    _print_enrich_warnings(plan=plan, deps=resolved_deps)
+    _print_enrich_warnings(report=quality_report, deps=resolved_deps)
 
     report = resolved_deps.enrich_report_or_error(report)
     if report is None:
@@ -316,4 +325,13 @@ def run_stage_enrich(
     )
 
 
-__all__ = ["ColorizeFn", "EnrichStageDeps", "run_stage_enrich"]
+def cmd_stage_enrich(
+    args: argparse.Namespace,
+    *,
+    services: TriageServices | None = None,
+) -> None:
+    """Public entrypoint for enrich stage recording."""
+    run_stage_enrich(args, services=services)
+
+
+__all__ = ["ColorizeFn", "EnrichStageDeps", "cmd_stage_enrich", "run_stage_enrich"]

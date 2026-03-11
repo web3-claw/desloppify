@@ -19,6 +19,8 @@ from desloppify.base.discovery.paths import get_project_root
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 
+from ..helpers import has_triage_in_queue, inject_triage_stages
+from ..lifecycle import TriageLifecycleDeps, TriageStartRequest, ensure_triage_started
 from ..services import TriageServices, default_triage_services
 from ..validation.core import (
     _analyze_reflect_issue_accounting,
@@ -45,7 +47,7 @@ from .orchestrator_codex_pipeline_execution import (
     execute_stage as execute_stage_impl,
     read_stage_output as read_stage_output_impl,
 )
-from .orchestrator_common import STAGES, ensure_triage_started, run_stamp
+from .orchestrator_common import STAGES, run_stamp
 from .stage_prompts import build_stage_prompt
 
 
@@ -348,16 +350,29 @@ def run_codex_pipeline(
     runtime = resolved_services.command_runtime(args)
     state = runtime.state
     plan = resolved_services.load_plan()
-    ensure_triage_started(
+    start_outcome = ensure_triage_started(
         plan,
-        resolved_services,
-        runner="codex",
-        state=state,
-        attestation=getattr(args, "attestation", None),
+        services=resolved_services,
+        request=TriageStartRequest(
+            state=state,
+            attestation=getattr(args, "attestation", None),
+            log_action="triage_auto_start",
+            log_actor="system",
+            log_detail={
+                "source": "runner_auto_start",
+                "runner": "codex",
+                "injected_stage_ids": list(STAGES),
+            },
+            start_message="  Planning mode auto-started.",
+        ),
+        deps=TriageLifecycleDeps(
+            has_triage_in_queue=has_triage_in_queue,
+            inject_triage_stages=inject_triage_stages,
+        ),
     )
-    plan = resolved_services.load_plan()
-    if plan.get("epic_triage_meta", {}).get("triage_start_blocked"):
+    if getattr(start_outcome, "status", None) == "blocked":
         return
+    plan = resolved_services.load_plan()
 
     stamp = run_stamp()
     desloppify_dir = repo_root / ".desloppify"

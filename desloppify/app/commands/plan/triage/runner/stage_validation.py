@@ -14,16 +14,11 @@ from ..stages.evidence_parsing import (
     validate_report_has_file_paths,
     validate_report_references_clusters,
 )
+from ..validation.enrich_quality import evaluate_enrich_quality
 from ..validation.core import (
     _cluster_file_overlaps,
     _clusters_with_directory_scatter,
     _clusters_with_high_step_ratio,
-    _steps_missing_issue_refs,
-    _steps_referencing_skipped_issues,
-    _steps_with_bad_paths,
-    _steps_with_vague_detail,
-    _steps_without_effort,
-    _underspecified_steps,
 )
 from ..helpers import (
     cluster_issue_ids,
@@ -50,83 +45,24 @@ def run_enrich_quality_checks(
     phase_label: str,
 ) -> list[EnrichQualityFailure]:
     """Run enrich-level executor-readiness checks for a phase."""
-    sense_suffix = f" after {phase_label}" if phase_label == "sense-check" else ""
-    failures: list[EnrichQualityFailure] = []
-
-    underspec = _underspecified_steps(plan)
-    if underspec:
-        total = sum(n for _, n, _ in underspec)
-        failures.append(
-            EnrichQualityFailure(
-                code="underspecified_steps",
-                message=f"{total} step(s) still lack detail or issue_refs{sense_suffix}.",
-            )
+    report = evaluate_enrich_quality(
+        plan,
+        repo_root,
+        phase_label=phase_label,
+        bad_paths_severity="failure",
+        missing_effort_severity="failure",
+        include_missing_issue_refs=True,
+        include_vague_detail=True,
+        stale_issue_refs_severity="failure",
+    )
+    code_map = {"underspecified": "underspecified_steps", "bad_paths": "missing_paths"}
+    return [
+        EnrichQualityFailure(
+            code=code_map.get(issue.code, issue.code),
+            message=issue.message,
         )
-
-    bad_paths = _steps_with_bad_paths(plan, repo_root)
-    if bad_paths:
-        total = sum(len(bp) for _, _, bp in bad_paths)
-        if phase_label == "sense-check":
-            message = f"{total} file path(s) don't exist on disk{sense_suffix}."
-        else:
-            message = f"{total} file path(s) in step details don't exist on disk."
-        failures.append(
-            EnrichQualityFailure(code="missing_paths", message=message)
-        )
-
-    untagged = _steps_without_effort(plan)
-    if untagged:
-        total = sum(n for _, n, _ in untagged)
-        if phase_label == "sense-check":
-            message = f"{total} step(s) have no effort tag{sense_suffix}."
-        else:
-            message = (
-                f"{total} step(s) have no effort tag "
-                "(trivial/small/medium/large)."
-            )
-        failures.append(
-            EnrichQualityFailure(code="missing_effort", message=message)
-        )
-
-    no_refs = _steps_missing_issue_refs(plan)
-    if no_refs:
-        total = sum(n for _, n, _ in no_refs)
-        if phase_label == "sense-check":
-            message = f"{total} step(s) have no issue_refs{sense_suffix}."
-        else:
-            message = f"{total} step(s) have no issue_refs for traceability."
-        failures.append(
-            EnrichQualityFailure(code="missing_issue_refs", message=message)
-        )
-
-    vague = _steps_with_vague_detail(plan, repo_root)
-    if vague:
-        if phase_label == "sense-check":
-            message = f"{len(vague)} step(s) have vague detail{sense_suffix}."
-        else:
-            message = (
-                f"{len(vague)} step(s) have vague detail (< 80 chars, no file paths). "
-                "Executor-ready means: file path + specific instruction."
-            )
-        failures.append(
-            EnrichQualityFailure(code="vague_detail", message=message)
-        )
-
-    # Steps referencing skipped/wontfixed issues
-    stale_refs = _steps_referencing_skipped_issues(plan)
-    if stale_refs:
-        total_stale = sum(len(refs) for _, _, refs in stale_refs)
-        failures.append(
-            EnrichQualityFailure(
-                code="stale_issue_refs",
-                message=(
-                    f"{total_stale} step issue_ref(s) point to skipped/wontfixed issues"
-                    f"{sense_suffix}. Remove stale refs."
-                ),
-            )
-        )
-
-    return failures
+        for issue in report.failures
+    ]
 
 
 def _validate_observe_stage(
