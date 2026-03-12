@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import ast
 
-from desloppify.intelligence.review.context_holistic import (
-    budget_patterns_wrappers as wrappers_mod,
+from desloppify.intelligence.review.context_holistic.budget import (
+    patterns_wrappers as wrappers_mod,
 )
 
 

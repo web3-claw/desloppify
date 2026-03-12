@@ -6,16 +6,14 @@ Includes a Deno/edge-functions fallback where `tsc` cannot model URL-based impor
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import logging
 import re
 import shutil
+import subprocess  # nosec B404
 import sys
 from collections import defaultdict
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any
 
 from desloppify.base.discovery.file_paths import rel, resolve_path, safe_write_text
 from desloppify.base.discovery.paths import get_project_root
@@ -37,12 +35,7 @@ TS6192_RE = re.compile(
     r"^(.+)\((\d+),(\d+)\): error TS6192: All imports in import declaration are unused\."
 )
 logger = logging.getLogger(__name__)
-_proc_mod = importlib.import_module("sub" "process")
-_proc_runtime = SimpleNamespace(
-    run=_proc_mod.run,
-    SubprocessError=_proc_mod.SubprocessError,
-    CompletedProcess=_proc_mod.CompletedProcess,
-)
+_proc_runtime = subprocess
 
 # Compatibility aliases for external callers/tests that imported private names.
 _detect_unused_fallback = detect_unused_fallback
@@ -52,7 +45,7 @@ _should_use_deno_fallback = should_use_deno_fallback
 def _run_tsc_unused_check(
     project_root: Path,
     tsconfig_path: Path,
-) -> Any:
+) -> subprocess.CompletedProcess[str]:
     """Run the fixed `npx tsc` unused-symbol check for one project root."""
     npx_path = shutil.which("npx")
     if not npx_path:

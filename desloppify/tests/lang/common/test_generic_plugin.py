@@ -42,7 +42,7 @@ def _cleanup_registry():
     accidentally remove built-in languages during cleanup (module-level
     ``@register_lang`` decorators won't re-fire on re-import).
     """
-    from desloppify.languages._framework import registry_state
+    from desloppify.languages._framework.registry import state as registry_state
     from desloppify.languages._framework.registry.discovery import load_all
 
     # Ensure built-in plugins are loaded before snapshotting, so the
@@ -378,7 +378,7 @@ class TestToolSpecNormalization:
 @pytest.mark.usefixtures("_cleanup_registry")
 class TestGenericLang:
     def test_registers_and_resolves(self):
-        from desloppify.languages._framework import registry_state
+        from desloppify.languages._framework.registry import state as registry_state
         from desloppify.languages._framework.base.types import LangConfig
 
         cfg = generic_lang(

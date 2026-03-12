@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import ast
 
-import desloppify.intelligence.review.context_holistic.budget_abstractions_axes as axes_mod
-import desloppify.intelligence.review.context_holistic.budget_abstractions_scan as scan_mod
-import desloppify.intelligence.review.context_holistic.budget_patterns_wrappers as wrappers_mod
+import desloppify.intelligence.review.context_holistic.budget.axes as axes_mod
+import desloppify.intelligence.review.context_holistic.budget.scan as scan_mod
+import desloppify.intelligence.review.context_holistic.budget.patterns_wrappers as wrappers_mod
 import desloppify.intelligence.review.importing.cache as cache_mod
 
 

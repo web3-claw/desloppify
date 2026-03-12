@@ -23,7 +23,7 @@ import desloppify.languages._framework.commands.registry as registry_cmd_mod
 import desloppify.languages._framework.commands.scaffold as scaffold_mod
 import desloppify.languages._framework.generic_support.capabilities as capabilities_mod
 import desloppify.languages._framework.generic_support.registration as registration_mod
-import desloppify.languages._framework.registration as framework_registration_mod
+import desloppify.languages._framework.registry.registration as framework_registration_mod
 import desloppify.languages._framework.runtime_support.accessors as accessors_mod
 import desloppify.languages._framework.treesitter._specs as treesitter_specs_legacy_mod
 import desloppify.languages._framework.treesitter.analysis.cohesion as treesitter_cohesion_mod

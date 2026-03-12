@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from desloppify.intelligence.review.context_holistic import (
-    budget_abstractions_axes as axes_mod,
-    budget_abstractions_scan as scan_mod,
+from desloppify.intelligence.review.context_holistic.budget import (
+    axes as axes_mod,
+    scan as scan_mod,
 )
 
 

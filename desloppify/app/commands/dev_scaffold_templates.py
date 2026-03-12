@@ -29,7 +29,7 @@ def _init_template(
         "    shared_subjective_duplicates_tail,\n"
         ")\n"
         "from desloppify.languages._framework.base.types import DetectorPhase, LangConfig\n"
-        "from desloppify.languages._framework.registration import register_full_plugin\n"
+        "from desloppify.languages._framework.registry.registration import register_full_plugin\n"
         "from . import test_coverage as test_coverage_hooks\n"
         "from .commands import get_detect_commands\n"
         "from .extractors import extract_functions\n"

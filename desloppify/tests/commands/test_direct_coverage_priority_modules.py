@@ -8,7 +8,7 @@ from pathlib import Path
 
 import desloppify.app.commands.helpers.display as display_mod
 import desloppify.app.commands.next.render_support as next_render_support_mod
-import desloppify.app.commands.helpers.persist as helpers_persist_mod
+import desloppify.app.commands.helpers.state_persistence as helpers_persist_mod
 import desloppify.app.commands.resolve.queue_guard as resolve_queue_guard_mod
 import desloppify.app.commands.resolve.render_support as resolve_render_support_mod
 import desloppify.app.commands.suppress as suppress_cmd_mod
@@ -39,7 +39,7 @@ import desloppify.engine.planning.render_sections as planning_render_sections_mo
 import desloppify.engine.planning.scorecard_policy as dimension_policy_mod
 import desloppify.engine.hook_registry as hook_registry_mod
 import desloppify.intelligence.narrative.signals as narrative_signals_mod
-import desloppify.intelligence.review.context_holistic.selection_contexts as selection_contexts_mod
+import desloppify.intelligence.review.context_holistic.selection.contexts as selection_contexts_mod
 import desloppify.intelligence.review.selection_cache as review_selection_cache_mod
 import desloppify.languages._framework.scoped_store as scoped_store_mod
 import desloppify.languages.csharp.detectors.deps_support_projects as csharp_deps_support_mod

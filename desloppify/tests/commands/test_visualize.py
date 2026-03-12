@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.app.output._viz_cmd_context import load_cmd_context
 from desloppify.app.output.tree_text import _aggregate, _print_tree
 from desloppify.app.commands.viz import cmd_viz

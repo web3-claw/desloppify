@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import desloppify.app.commands.show.cmd as show_cmd_mod
 import desloppify.app.commands.show.scope as show_scope_mod
 import desloppify.state as state_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.app.commands.show.cmd import cmd_show
 from desloppify.app.commands.show.formatting import (
     DETAIL_DISPLAY,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import desloppify.app.commands.backlog.cmd as backlog_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 
 
 def _args(**overrides):

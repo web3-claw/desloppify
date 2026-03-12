@@ -16,7 +16,7 @@ from desloppify.languages._framework.base.types import (
     LangConfig,
     LangSecurityResult,
 )
-from desloppify.languages._framework.registration import register_full_plugin
+from desloppify.languages._framework.registry.registration import register_full_plugin
 from desloppify.languages.typescript import test_coverage as ts_test_coverage_hooks
 from desloppify.languages.typescript._fixers import get_ts_fixers
 import desloppify.languages.typescript.commands as ts_commands_mod

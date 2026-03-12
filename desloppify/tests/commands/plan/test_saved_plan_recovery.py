@@ -9,7 +9,7 @@ from pathlib import Path
 import desloppify.app.commands.plan.queue_render as queue_render_mod
 import desloppify.app.commands.plan.repair_state as repair_state_mod
 import desloppify.app.commands.plan.triage.workflow as workflow_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.engine._state.persistence import load_state
 from desloppify.engine._state.schema import empty_state
 

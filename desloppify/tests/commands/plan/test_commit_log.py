@@ -401,9 +401,7 @@ def test_history_top_limits(monkeypatch, capsys) -> None:
 # ---------------------------------------------------------------------------
 
 def test_pr_body_no_commits(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(commit_log_mod, "state_mod", SimpleNamespace(
-        load_state=lambda: {"issues": {}},
-    ))
+    monkeypatch.setattr(commit_log_mod, "load_state", lambda: {"issues": {}})
 
     commit_log_mod._cmd_commit_log_pr(_base_plan())
 
@@ -412,13 +410,11 @@ def test_pr_body_no_commits(monkeypatch, capsys) -> None:
 
 
 def test_pr_body_with_commits(monkeypatch, capsys) -> None:
-    monkeypatch.setattr(commit_log_mod, "state_mod", SimpleNamespace(
-        load_state=lambda: {
-            "issues": {
-                "smells::a.py::fn": {"summary": "Long function in parser"},
-            },
+    monkeypatch.setattr(commit_log_mod, "load_state", lambda: {
+        "issues": {
+            "smells::a.py::fn": {"summary": "Long function in parser"},
         },
-    ))
+    })
 
     plan = _base_plan(commit_log=[
         {
@@ -442,9 +438,7 @@ def test_pr_body_with_commits(monkeypatch, capsys) -> None:
 
 def test_pr_body_state_load_failure(monkeypatch, capsys) -> None:
     """If load_state fails, PR body still renders with empty state."""
-    monkeypatch.setattr(commit_log_mod, "state_mod", SimpleNamespace(
-        load_state=lambda: (_ for _ in ()).throw(OSError("no state")),
-    ))
+    monkeypatch.setattr(commit_log_mod, "load_state", lambda: (_ for _ in ()).throw(OSError("no state")))
 
     plan = _base_plan(commit_log=[
         {"sha": "aaa", "issue_ids": ["x::1"], "note": "", "recorded_at": ""},

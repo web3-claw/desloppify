@@ -354,7 +354,7 @@ def test_override_misc_focus_and_scan_gate_paths(monkeypatch, capsys) -> None:
     assert "Focus cleared" in out_clear
 
     monkeypatch.setattr(override_misc_mod, "state_path", lambda _args: Path("state.json"))
-    monkeypatch.setattr(override_misc_mod.state_mod, "load_state", lambda _path: {"scan_count": 3})
+    monkeypatch.setattr(override_misc_mod, "load_state", lambda _path: {"scan_count": 3})
 
     override_misc_mod.cmd_plan_scan_gate(argparse.Namespace(skip=False, note=None))
     out_blocked = capsys.readouterr().out

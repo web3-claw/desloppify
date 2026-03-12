@@ -577,7 +577,7 @@ class TestGracefulDegradation:
         finally:
             ts_mod._AVAILABLE = saved
             # Clean up registry.
-            from desloppify.languages._framework import registry_state
+            from desloppify.languages._framework.registry import state as registry_state
             registry_state.remove("_test_no_ts")
 
     def test_file_read_error_skipped(self, tmp_path):

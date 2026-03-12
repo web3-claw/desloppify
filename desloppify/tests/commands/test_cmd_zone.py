@@ -1,7 +1,7 @@
 """Tests for desloppify.app.commands.zone — zone command helpers."""
 
 import desloppify.base.config as config_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.app.commands.zone import (
     _zone_clear,
     _zone_set,

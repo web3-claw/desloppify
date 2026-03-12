@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import desloppify.app.commands.plan.triage.plan_state_access as plan_state_access_mod
 from desloppify.app.commands.plan.triage.plan_state_access import (
     ensure_cluster_map,
     ensure_execution_log,
@@ -36,3 +37,37 @@ def test_plan_state_access_initializes_missing_collections() -> None:
 def test_normalized_issue_id_list_filters_non_strings() -> None:
     assert normalized_issue_id_list(["a", 123, None, "b"]) == ["a", "b"]
     assert normalized_issue_id_list("a") == []
+
+
+def test_plan_state_access_reuses_existing_storage_and_filters_execution_log() -> None:
+    queue_order = ["a"]
+    skipped = {"issue": {"note": "keep"}}
+    clusters = {"cluster": {"issue_ids": ["a"]}}
+    meta = {"stage": "observe"}
+    raw_log: list[object] = [{"kind": "resolve"}, "skip-me", {"kind": "note"}]
+    plan = {
+        "queue_order": queue_order,
+        "skipped": skipped,
+        "clusters": clusters,
+        "epic_triage_meta": meta,
+        "execution_log": raw_log,
+    }
+
+    assert plan_state_access_mod.ensure_queue_order(plan) is queue_order
+    assert plan_state_access_mod.ensure_skipped_map(plan) is skipped
+    assert plan_state_access_mod.ensure_cluster_map(plan) is clusters
+    assert plan_state_access_mod.ensure_triage_meta(plan) is meta
+
+    normalized_log = plan_state_access_mod.ensure_execution_log(plan)
+
+    assert normalized_log == [{"kind": "resolve"}, {"kind": "note"}]
+    assert plan["execution_log"] is normalized_log
+
+
+def test_plan_state_access_exports_expected_helpers() -> None:
+    assert "ensure_queue_order" in plan_state_access_mod.__all__
+    assert "ensure_skipped_map" in plan_state_access_mod.__all__
+    assert "ensure_cluster_map" in plan_state_access_mod.__all__
+    assert "ensure_triage_meta" in plan_state_access_mod.__all__
+    assert "ensure_execution_log" in plan_state_access_mod.__all__
+    assert "normalized_issue_id_list" in plan_state_access_mod.__all__

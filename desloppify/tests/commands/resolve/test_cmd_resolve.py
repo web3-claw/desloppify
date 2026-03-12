@@ -1,10 +1,12 @@
 """Tests for desloppify.app.commands.resolve — resolve/ignore command logic."""
 
+import argparse
 import inspect
 from pathlib import Path
 
 import pytest
 
+import desloppify.app.commands.helpers.command_runtime as command_runtime_mod
 import desloppify.app.commands.resolve.cmd as resolve_mod
 import desloppify.app.commands.resolve.selection as resolve_selection_mod
 import desloppify.app.commands.suppress as suppress_mod
@@ -400,3 +402,79 @@ class TestCmdSuppress:
             cmd_suppress(FakeArgs())
         assert exc_info.value.exit_code == 1
         assert "could not save state" in exc_info.value.message
+
+
+class TestResolveHelperModules:
+    def test_command_runtime_prefers_explicit_runtime(self) -> None:
+        runtime = command_runtime_mod.CommandRuntime(
+            config={"strict_target": 95},
+            state={"issues": {}},
+            state_path=Path("/tmp/desloppify-state.json"),
+        )
+
+        loaded = command_runtime_mod.command_runtime(argparse.Namespace(runtime=runtime))
+
+        assert loaded is runtime
+        assert loaded.config["strict_target"] == 95
+        assert loaded.state == {"issues": {}}
+        assert loaded.state_path == Path("/tmp/desloppify-state.json")
+
+    def test_command_runtime_builds_runtime_from_config_and_state(self, monkeypatch) -> None:
+        fake_state = {"issues": {"one": {"status": "open"}}}
+        captured: dict[str, object] = {}
+
+        def _fake_load_state(path: Path) -> dict[str, object]:
+            captured["state_path"] = path
+            return fake_state
+
+        monkeypatch.setattr(command_runtime_mod, "load_config", lambda: {"badge": True})
+        monkeypatch.setattr(command_runtime_mod, "state_path", lambda _args: "var/desloppify.json")
+        monkeypatch.setattr(command_runtime_mod, "load_state", _fake_load_state)
+
+        runtime = command_runtime_mod.command_runtime(argparse.Namespace())
+
+        assert runtime.config == {"badge": True}
+        assert runtime.state == fake_state
+        assert runtime.state_path == Path("var/desloppify.json")
+        assert captured["state_path"] == Path("var/desloppify.json")
+
+    def test_state_persistence_helpers_delegate_and_wrap_os_errors(self, monkeypatch) -> None:
+        saved: dict[str, object] = {}
+
+        monkeypatch.setattr(
+            state_persistence_mod.state_compat,
+            "save_state",
+            lambda state, state_file: saved.update(state=state, state_file=state_file),
+        )
+        monkeypatch.setattr(
+            state_persistence_mod.config_mod,
+            "save_config",
+            lambda config: saved.update(config=config),
+        )
+
+        state = {"issues": {}}
+        state_file = Path("/tmp/desloppify-state.json")
+        config = {"strict_target": 95}
+
+        state_persistence_mod.save_state_or_exit(state, state_file)
+        state_persistence_mod.save_config_or_exit(config)
+
+        assert saved["state"] is state
+        assert saved["state_file"] == state_file
+        assert saved["config"] is config
+
+        monkeypatch.setattr(
+            state_persistence_mod.state_compat,
+            "save_state",
+            lambda *_args: (_ for _ in ()).throw(OSError("readonly")),
+        )
+        monkeypatch.setattr(
+            state_persistence_mod.config_mod,
+            "save_config",
+            lambda *_args: (_ for _ in ()).throw(OSError("disk full")),
+        )
+
+        with pytest.raises(CommandError, match="could not save state: readonly"):
+            state_persistence_mod.save_state_or_exit(state, state_file)
+        with pytest.raises(CommandError, match="could not save config: disk full"):
+            state_persistence_mod.save_config_or_exit(config)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from desloppify import state as state_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.app.commands.scan.workflow import (
     ScanRuntime,
     merge_scan_results,

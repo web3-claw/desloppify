@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from types import SimpleNamespace
 
 from desloppify.app.commands.helpers.command_runtime import command_runtime
 from desloppify.app.commands.helpers.state import require_issue_inventory, state_path
@@ -29,8 +28,6 @@ from desloppify.engine.plan_ops import (
 from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
 from desloppify.engine._state.resolution import resolve_issues
 from desloppify.state_io import load_state
-
-state_mod = SimpleNamespace(load_state=load_state)
 
 
 def cmd_plan_describe(args: argparse.Namespace) -> None:
@@ -89,7 +86,7 @@ def cmd_plan_reopen(args: argparse.Namespace) -> None:
         if raw_state_path
         else None
     )
-    state_data = state_mod.load_state(state_file)
+    state_data = load_state(state_file)
     plan_file = _plan_file_for_state(state_file)
 
     reopened: list[str] = []
@@ -175,7 +172,7 @@ def cmd_plan_scan_gate(args: argparse.Namespace) -> None:
         return
 
     resolved_state_path = state_path(args)
-    state_data = state_mod.load_state(resolved_state_path)
+    state_data = load_state(resolved_state_path)
     current_scan_count = int(state_data.get("scan_count", 0) or 0)
     scan_ran = current_scan_count > scan_count_at_start
     scan_skipped = plan.get("scan_gate_skipped", False)

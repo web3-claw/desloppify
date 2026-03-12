@@ -12,7 +12,7 @@ from desloppify.languages._framework.base.phase_builders import (
     shared_subjective_duplicates_tail,
 )
 from desloppify.languages._framework.base.types import DetectorPhase, LangConfig
-from desloppify.languages._framework.registration import register_full_plugin
+from desloppify.languages._framework.registry.registration import register_full_plugin
 from desloppify.languages._framework.treesitter.phases import all_treesitter_phases
 from desloppify.languages.gdscript import test_coverage as gdscript_test_coverage_hooks
 from desloppify.languages.gdscript.commands import get_detect_commands

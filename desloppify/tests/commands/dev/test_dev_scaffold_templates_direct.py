@@ -37,7 +37,7 @@ def test_init_template_registers_language_and_defaults():
     assert "detect_markers=['Package.swift']" in init_py
     assert "from desloppify.languages._framework.base.types import DetectorPhase, LangConfig" in init_py
     assert "from desloppify.languages._framework.base.phase_builders import (" in init_py
-    assert "from desloppify.languages._framework.registration import register_full_plugin" in init_py
+    assert "from desloppify.languages._framework.registry.registration import register_full_plugin" in init_py
     assert "from desloppify.engine.hook_registry import register_lang_hooks" in init_py
     assert "get_area=get_area" in init_py
     assert "large_threshold=500" in init_py

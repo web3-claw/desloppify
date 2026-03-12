@@ -6,7 +6,7 @@ import importlib
 import logging
 import sys
 
-from desloppify.languages._framework import registry_state
+from desloppify.languages._framework.registry import state as registry_state
 
 logger = logging.getLogger(__name__)
 

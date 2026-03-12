@@ -17,7 +17,7 @@ from desloppify.languages._framework.generic_parts.tool_factories import (
 @pytest.fixture
 def _cleanup_registry():
     """Auto-cleanup generic plugins registered during a test."""
-    from desloppify.languages._framework import registry_state
+    from desloppify.languages._framework.registry import state as registry_state
     from desloppify.languages._framework.registry.discovery import load_all
 
     load_all()

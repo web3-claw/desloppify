@@ -13,7 +13,7 @@ from desloppify.languages._framework.base.phase_builders import (
     detector_phase_test_coverage,
     shared_subjective_duplicates_tail,
 )
-from desloppify.languages._framework.registration import register_full_plugin
+from desloppify.languages._framework.registry.registration import register_full_plugin
 from desloppify.languages._framework.base.shared_phases import phase_private_imports
 from desloppify.languages._framework.base.types import (
     DetectorCoverageStatus,

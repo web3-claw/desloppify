@@ -115,7 +115,7 @@ def _mock_state(monkeypatch, state):
     monkeypatch.setattr(state_mod_real, "load_state", lambda path=None: state)
     # Also patch the module-level import used in the split modules
     monkeypatch.setattr(resolve_workflow_mod.state_mod, "load_state", lambda path=None: state)
-    monkeypatch.setattr(misc_mod.state_mod, "load_state", lambda path=None: state)
+    monkeypatch.setattr(misc_mod, "load_state", lambda path=None: state)
 
 
 # ===========================================================================

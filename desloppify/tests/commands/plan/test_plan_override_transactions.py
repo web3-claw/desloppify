@@ -8,7 +8,7 @@ import copy
 import pytest
 
 from desloppify import state as state_mod
-from desloppify.app.commands.helpers.runtime import CommandRuntime
+from desloppify.app.commands.helpers.command_runtime import CommandRuntime
 from desloppify.app.commands.plan import override_io
 from desloppify.app.commands.plan import override_skip
 from desloppify.base.exception_sets import CommandError

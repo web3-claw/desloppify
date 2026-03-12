@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from types import SimpleNamespace
 
 from desloppify.engine.plan_state import (
     commit_tracking_summary,
@@ -20,8 +19,6 @@ from desloppify.base.config import load_config
 from desloppify.base.git_context import detect_git_context, update_pr_body
 from desloppify.base.output.terminal import colorize
 from desloppify.state_io import load_state
-
-state_mod = SimpleNamespace(load_state=load_state)
 
 
 def _cmd_commit_log_status(plan: dict) -> None:
@@ -113,7 +110,7 @@ def _maybe_update_pr_body(plan: dict) -> None:
     if not pr_number:
         return
     try:
-        state = state_mod.load_state()
+        state = load_state()
         body = generate_pr_body(plan, state)
         ok = update_pr_body(pr_number, body)
         if ok:
@@ -210,7 +207,7 @@ def _cmd_commit_log_history(args: argparse.Namespace, plan: dict) -> None:
 def _cmd_commit_log_pr(plan: dict) -> None:
     """Print PR body markdown to stdout (dry run)."""
     try:
-        state = state_mod.load_state()
+        state = load_state()
     except (OSError, ValueError, KeyError, TypeError):
         state = {"issues": {}}
 
