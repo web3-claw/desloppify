@@ -156,6 +156,12 @@ _CLI_REFERENCE_TEMPLATE = """\
 **Important:** The --attest value MUST contain the words "reviewed" and "not gaming" (exact phrases required by validation).
 Every review issue in the active triage run must end up either in a manual cluster or permanently skipped. Leaving issues unassigned is an invalid triage result.
 
+### Issue investigation
+```
+{cli_command} show <issue-id-or-pattern> --no-budget    # full issue detail with suggestion
+{cli_command} show review --status open --no-budget     # all open review issues
+```
+
 ### Effort tags
 Valid values: trivial, small, medium, large. Set on steps via --effort flag.
 """

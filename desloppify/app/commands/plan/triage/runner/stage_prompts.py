@@ -53,10 +53,40 @@ def _compact_issue_summary(triage_input: TriageInput) -> str:
         parts.append(f"New since last triage: {len(triage_input.new_since_last)}")
     if triage_input.resolved_since_last:
         parts.append(f"Resolved since last triage: {len(triage_input.resolved_since_last)}")
+
+    # Cluster summary if clusters exist
+    existing = triage_input.existing_clusters or {}
+    if existing:
+        parts.append("")
+        parts.append("## Clusters")
+        for cname, cdata in existing.items():
+            desc = cdata.get("description") or ""
+            count = len(cdata.get("issue_ids", []))
+            desc_str = f" ({desc})" if desc else ""
+            parts.append(f"- {cname}: {count} issues{desc_str}")
+
     return "\n".join(parts)
 
 
-def _issue_context_for_stage(stage: str, triage_input: TriageInput) -> str:
+_INVESTIGATION_COMMANDS = """\
+
+## Available Investigation Commands
+
+To see full detail for a specific issue:
+  desloppify show <issue-id-or-hash-pattern> --no-budget
+To see all open review issues with suggestions:
+  desloppify show review --status open --no-budget
+To see a cluster's steps, members, and suggestions:
+  desloppify plan cluster show <name>
+To list all clusters:
+  desloppify plan cluster list --verbose"""
+
+
+def _issue_context_for_stage(
+    stage: str,
+    triage_input: TriageInput,
+    mode: PromptMode = "self_record",
+) -> str:
     """Return the amount of issue context appropriate for a stage."""
     if stage in {"observe", "reflect"}:
         parts = ["## Issue Data\n\n" + build_triage_prompt(triage_input)]
@@ -79,7 +109,10 @@ def _issue_context_for_stage(stage: str, triage_input: TriageInput) -> str:
                 + "\n".join(f"- {short_id} -> TODO" for short_id in short_ids)
             )
         return "\n\n".join(parts)
-    return _compact_issue_summary(triage_input)
+    summary = _compact_issue_summary(triage_input)
+    if mode == "self_record":
+        summary += _INVESTIGATION_COMMANDS
+    return summary
 
 
 def _format_assessments_table(assessments: list[dict]) -> str:
@@ -140,7 +173,7 @@ def _relevant_prior_reports(
     result = [(name, prior_reports[name]) for name in wanted if name in prior_reports]
 
     # Append structured observe assessments for stages that need verdict data
-    if stage in {"reflect", "organize"} and stages_data:
+    if stage in {"reflect", "organize", "sense-check"} and stages_data:
         observe_data = stages_data.get("observe", {})
         assessments = observe_data.get("assessments", [])
         if assessments:
@@ -185,7 +218,7 @@ def build_stage_prompt(
             parts.append(f"### {prior_stage.upper()} Report\n{report}\n")
 
     # Issue data / summary
-    parts.append(_issue_context_for_stage(stage, triage_input))
+    parts.append(_issue_context_for_stage(stage, triage_input, mode))
 
     # Stage-specific instructions
     instruction_fn = _STAGE_INSTRUCTIONS.get(stage)

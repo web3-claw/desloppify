@@ -25,6 +25,9 @@ def _print_cluster_member(idx: int, fid: str, issue: dict | None) -> None:
     summary = issue.get("summary", "")
     if summary:
         print(colorize(f"       {summary}", "dim"))
+    suggestion = issue.get("detail", {}).get("suggestion", "") if isinstance(issue.get("detail"), dict) else ""
+    if suggestion:
+        print(colorize(f"       Suggestion: {suggestion[:200]}", "dim"))
 
 
 def _load_issues_best_effort(args: argparse.Namespace) -> dict:

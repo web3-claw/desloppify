@@ -261,12 +261,13 @@ def _enrich_instructions(mode: PromptMode = "self_record") -> str:
     subagent_block = """\
 **USE SUBAGENTS — one per cluster.** Each subagent MUST:
 
-1. Run `desloppify plan cluster show <name>` to get current steps and issue list
-2. **Read the actual source file for every step** — not just the issue description.
+1. Run `desloppify plan cluster show <name>` to get steps, members, and reviewer suggestions
+2. For deeper analysis, run `desloppify show <issue-id> --no-budget` to see full evidence
+3. **Read the actual source file for every step** — not just the issue description.
    The issue says what's wrong; you need to see the code to say what to DO.
-3. Write detail that includes: the file path, the specific location (line range or
+4. Write detail that includes: the file path, the specific location (line range or
    function name), and the exact change to make
-4. Set effort based on the ACTUAL complexity you see in the code, not a guess
+5. Set effort based on the ACTUAL complexity you see in the code, not a guess
 """
     tail = """\
 When done, run:
@@ -389,6 +390,12 @@ desloppify plan triage --stage sense-check --report "<findings summary>"
 When done, write a plain-text sense-check report with concrete content and structure fixes.
 The orchestrator records and confirms the stage.
 """
+    investigation_hint = (
+        "Use `desloppify show <issue-hash> --no-budget` to verify step details "
+        "match the original reviewer analysis.\n\n"
+        if mode == "self_record"
+        else ""
+    )
     return f"""\
 ## SENSE-CHECK Stage Instructions
 
@@ -396,7 +403,7 @@ This stage is handled by two parallel subagents. If you are being run as a
 single-subprocess fallback, perform BOTH the content and structure checks below.
 
 ### Content Check (per cluster)
-For EVERY step in every cluster, read the actual source file and verify:
+{investigation_hint}For EVERY step in every cluster, read the actual source file and verify:
 1. LINE NUMBERS: Does the code at the claimed lines match the step description?
 2. NAMES: Do function/variable/type names in the step exist in the file?
 3. COUNTS: Are counts ("update the 3 imports") accurate?
