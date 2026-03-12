@@ -29,7 +29,7 @@ from ..prompt_sections import (
 )
 
 _CONTEXT_SCHEMA_PATH = (
-    Path(__file__).resolve().parent.parent.parent.parent
+    Path(__file__).resolve().parent.parent.parent.parent.parent
     / "languages"
     / "_framework"
     / "review_data"
@@ -94,9 +94,8 @@ def _render_output_schema(context: PromptBatchContext, batch_index: int) -> str:
         "  },\n"
         '  "dimension_judgment": {\n'
         '    "<dimension>": {\n'
-        '      "strengths": ["0-5 specific things the codebase does well from this dimension\'s perspective"],\n'
-        '      "issue_character": "one sentence characterizing the nature/pattern of issues from this dimension\'s perspective",\n'
-        '      "score_rationale": "2-3 sentences explaining the score from this dimension\'s perspective, referencing global anchors"\n'
+        '      "dimension_character": "2-3 sentences characterizing the overall nature of this dimension, synthesizing both positive characteristics and defects",\n'
+        '      "score_rationale": "2-3 sentences explaining the score, referencing global anchors"\n'
         "    }  // required for every assessed dimension; do not omit\n"
         "  },\n"
         '  "issues": [{\n'
@@ -121,7 +120,7 @@ def _render_output_schema(context: PromptBatchContext, batch_index: int) -> str:
         "  },\n"
         '  "context_updates": {\n'
         '    "<dimension>": {\n'
-        '      "add": [{"header": "short label", "description": "why this is the way it is", "settled": true|false}],\n'
+        '      "add": [{"header": "short label", "description": "why this is the way it is", "settled": true|false, "positive": true|false}],\n'
         '      "remove": ["header of insight to remove"],\n'
         '      "settle": ["header of insight to mark as settled"],\n'
         '      "unsettle": ["header of insight to unsettle"]\n'

@@ -10,7 +10,11 @@ from desloppify.engine.concerns import cleanup_stale_dismissals, generate_concer
 from desloppify.engine.scoring import HOLISTIC_POTENTIAL
 from desloppify.intelligence.review.dimensions import normalize_dimension_name
 from desloppify.intelligence.review.dimensions.data import load_dimensions_for_lang
-from desloppify.intelligence.review.importing.assessments import store_assessments
+from desloppify.intelligence.review.importing.assessments import (
+    backfill_judgment_strengths,
+    store_assessments,
+    store_context_updates,
+)
 from desloppify.intelligence.review.importing.contracts_types import (
     ReviewImportPayload,
     ReviewIssuePayload,
@@ -23,7 +27,11 @@ from desloppify.intelligence.review.importing.holistic_cache import (
 )
 from desloppify.intelligence.review.importing.holistic_issue_flow import (
     auto_resolve_stale_holistic as _auto_resolve_stale_holistic,
+)
+from desloppify.intelligence.review.importing.holistic_issue_flow import (
     collect_imported_dimensions as _collect_imported_dimensions,
+)
+from desloppify.intelligence.review.importing.holistic_issue_flow import (
     validate_and_build_issues as _validate_and_build_issues,
 )
 from desloppify.intelligence.review.importing.payload import (
@@ -60,6 +68,7 @@ def import_holistic_issues(
     assessments = payload.assessments
     reviewed_files = payload.reviewed_files
     dimension_judgment = payload.dimension_judgment
+    context_updates = payload.context_updates
     review_scope = issues_data.get("review_scope", {})
     if not isinstance(review_scope, dict):
         review_scope = {}
@@ -67,6 +76,13 @@ def import_holistic_issues(
     scope_full_sweep = review_scope.get("full_sweep_included")
     if not isinstance(scope_full_sweep, bool):
         scope_full_sweep = None
+
+    _, holistic_prompts, _ = load_dimensions_for_lang(lang_name)
+    valid_dimensions = {
+        normalize_dimension_name(dim)
+        for dim in holistic_prompts
+        if isinstance(dim, str)
+    }
 
     if assessments:
         store_assessments(
@@ -77,12 +93,17 @@ def import_holistic_issues(
             dimension_judgment=dimension_judgment,
         )
 
-    _, holistic_prompts, _ = load_dimensions_for_lang(lang_name)
-    valid_dimensions = {
-        normalize_dimension_name(dim)
-        for dim in holistic_prompts
-        if isinstance(dim, str)
-    }
+    # Store accumulated dimension context updates
+    if isinstance(context_updates, dict):
+        store_context_updates(
+            state,
+            context_updates,
+            valid_dimensions=valid_dimensions,
+            utc_now_fn=utc_now_fn,
+        )
+        # Derive judgment.strengths from positive context insights
+        backfill_judgment_strengths(state, context_updates)
+
     review_issues, skipped, dismissed_concerns = _validate_and_build_issues(
         issues_list,
         holistic_prompts,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from desloppify.intelligence.review.feedback_contract import (
     DIMENSION_NOTE_ISSUES_KEY,
     HIGH_SCORE_ISSUES_NOTE_THRESHOLD,
@@ -22,9 +21,9 @@ from desloppify.intelligence.review.importing.payload import (
 from .core_models import (
     BatchDimensionJudgmentPayload,
     BatchDimensionNotePayload,
-    DismissedConcernPayload,
     BatchIssuePayload,
     BatchQualityPayload,
+    DismissedConcernPayload,
     NormalizedBatchIssue,
 )
 
@@ -117,13 +116,28 @@ def _validate_dimension_judgment(
         raw.get("strengths"),
         require_complete=require_complete,
     )
+
+    # Accept dimension_character (new) or issue_character (legacy)
+    dimension_character = _normalize_dimension_judgment_text(
+        key,
+        raw.get("dimension_character"),
+        field_name="dimension_character",
+        require_complete=False,
+        log_fn=log_fn,
+    )
     issue_character = _normalize_dimension_judgment_text(
         key,
         raw.get("issue_character"),
         field_name="issue_character",
-        require_complete=require_complete,
+        require_complete=False,
         log_fn=log_fn,
     )
+    # Require at least one character field when completeness is required
+    if require_complete and not dimension_character and not issue_character:
+        raise ValueError(
+            f"dimension_judgment.{key} must include dimension_character or issue_character"
+        )
+
     score_rationale = _normalize_dimension_judgment_text(
         key,
         raw.get("score_rationale"),
@@ -133,12 +147,14 @@ def _validate_dimension_judgment(
         min_length=50,
     )
 
-    if not issue_character and not score_rationale and not strengths:
+    if not dimension_character and not issue_character and not score_rationale and not strengths:
         return None
 
     result: BatchDimensionJudgmentPayload = {}
     if strengths:
         result["strengths"] = strengths
+    if dimension_character:
+        result["dimension_character"] = dimension_character
     if issue_character:
         result["issue_character"] = issue_character
     if score_rationale:
@@ -159,8 +175,7 @@ def _normalize_dimension_judgment_strengths(
             for item in strengths_raw[:5]
             if isinstance(item, str) and str(item).strip()
         ]
-    if require_complete:
-        raise ValueError(f"dimension_judgment.{key}.strengths must be an array")
+    # Strengths are now optional — backfilled from positive context insights
     return []
 
 
@@ -516,7 +531,7 @@ def _normalize_dimension_judgments(
         )
         if validated is None:
             raise ValueError(
-                f"dimension_judgment.{key} must include strengths, issue_character, and score_rationale"
+                f"dimension_judgment.{key} must include dimension_character (or issue_character) and score_rationale"
             )
         dimension_judgment[key] = validated
     return dimension_judgment
@@ -524,7 +539,6 @@ def _normalize_dimension_judgments(
 
 _CONTEXT_HEADER_MAX_LENGTH = 80
 _CONTEXT_DESCRIPTION_MAX_LENGTH = 500
-_CONTEXT_MAX_INSIGHTS_PER_DIMENSION = 10
 
 
 def _normalize_context_additions(
@@ -536,7 +550,7 @@ def _normalize_context_additions(
         return []
 
     validated: list[dict[str, object]] = []
-    for item in add_raw[:_CONTEXT_MAX_INSIGHTS_PER_DIMENSION]:
+    for item in add_raw:
         if not isinstance(item, dict):
             continue
         header = item.get("header")
@@ -545,13 +559,14 @@ def _normalize_context_additions(
             continue
         if not isinstance(description, str) or not description.strip():
             continue
-        validated.append(
-            {
-                "header": header.strip()[:_CONTEXT_HEADER_MAX_LENGTH],
-                "description": description.strip()[:_CONTEXT_DESCRIPTION_MAX_LENGTH],
-                "settled": bool(item.get("settled", False)),
-            }
-        )
+        entry: dict[str, object] = {
+            "header": header.strip()[:_CONTEXT_HEADER_MAX_LENGTH],
+            "description": description.strip()[:_CONTEXT_DESCRIPTION_MAX_LENGTH],
+            "settled": bool(item.get("settled", False)),
+        }
+        if item.get("positive") is not None:
+            entry["positive"] = bool(item["positive"])
+        validated.append(entry)
     return validated
 
 

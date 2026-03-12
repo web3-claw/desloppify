@@ -239,6 +239,8 @@ def test_template_payload_includes_dimension_notes():
     )
     assert "dimension_notes" in payload
     assert payload["dimension_notes"] == {}
+    assert payload["dimension_judgment"] == {}
+    assert payload["context_updates"] == {}
 
 
 def test_external_launch_prompt_contains_shared_sections():
@@ -250,6 +252,17 @@ def test_external_launch_prompt_contains_shared_sections():
                 "dimensions": ["naming_quality"],
                 "why": "test",
                 "files_to_read": ["a.py"],
+                "dimension_contexts": {
+                    "naming_quality": {
+                        "insights": [
+                            {
+                                "header": "Naming follows CLI verbs",
+                                "description": "Commands align to user intent.",
+                                "settled": True,
+                            }
+                        ]
+                    }
+                },
             }
         ],
     }
@@ -266,6 +279,9 @@ def test_external_launch_prompt_contains_shared_sections():
     assert render_scope_enums() in prompt
     assert "--- Batch 1: B1 ---" in prompt
     assert "a.py" in prompt
+    assert "Codebase Characteristics" in prompt
+    assert "dimension_judgment" in prompt
+    assert "context_updates" in prompt
 
 
 def test_external_launch_prompt_with_historical_and_concern_signals():

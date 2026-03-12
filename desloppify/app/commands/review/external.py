@@ -33,6 +33,7 @@ from .prompt_sections import (
     build_batch_context,
     explode_to_single_dimension,
     join_non_empty_sections,
+    render_dimension_context_block,
     render_dimension_deferral_context,
     render_dimension_prompts_block,
     render_historical_focus,
@@ -181,6 +182,8 @@ def _build_template_payload(packet: dict[str, Any], *, session_id: str, token: s
         },
         "assessments": {dim: 0 for dim in dimensions},
         "dimension_notes": {},
+        "dimension_judgment": {},
+        "context_updates": {},
         "issues": [],
     }
 
@@ -225,6 +228,7 @@ def _build_claude_launch_prompt(
         ctx = build_batch_context(batch, i)
         all_dims.update(ctx.dimension_set)
         combined_cap += ctx.issues_cap
+        dimension_contexts = batch.get("dimension_contexts")
 
         section = (
             f"--- Batch {i + 1}: {ctx.name} ---\n"
@@ -233,6 +237,10 @@ def _build_claude_launch_prompt(
         section += render_dimension_prompts_block(
             ctx.dimensions,
             ctx.dimension_prompts or dim_prompts,
+        )
+        section += render_dimension_context_block(
+            ctx.dimensions,
+            dimension_contexts if isinstance(dimension_contexts, dict) else {},
         )
         section += render_seed_files_block(ctx)
         section += render_historical_focus(batch)
@@ -257,6 +265,12 @@ def _build_claude_launch_prompt(
         '      "confidence": "high|medium|low"\n'
         "    }\n"
         "  },\n"
+        '  "dimension_judgment": {\n'
+        '    "<dimension>": {\n'
+        '      "dimension_character": "2-3 sentences characterizing the overall nature of this dimension, synthesizing both positive characteristics and defects",\n'
+        '      "score_rationale": "2-3 sentences explaining the score, referencing global anchors"\n'
+        "    }\n"
+        "  },\n"
         '  "issues": [{\n'
         '    "dimension": "<dimension>",\n'
         '    "identifier": "short_id",\n'
@@ -271,7 +285,15 @@ def _build_claude_launch_prompt(
         '    "concern_verdict": "confirmed|dismissed  // for concern signals only",\n'
         '    "concern_fingerprint": "abc123  // required when dismissed; copy from signal fingerprint",\n'
         '    "reasoning": "why dismissed  // optional, for dismissed only"\n'
-        "  }]\n"
+        "  }],\n"
+        '  "context_updates": {\n'
+        '    "<dimension>": {\n'
+        '      "add": [{"header": "short label", "description": "why this is the way it is", "settled": true|false, "positive": true|false}],\n'
+        '      "remove": ["header of insight to remove"],\n'
+        '      "settle": ["header of insight to mark as settled"],\n'
+        '      "unsettle": ["header of insight to unsettle"]\n'
+        "    }  // omit or leave empty when no context changes\n"
+        "  }\n"
         "}\n\n"
     )
 

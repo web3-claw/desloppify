@@ -45,9 +45,13 @@ def _render_judgment(state: dict, dimension_key: str) -> None:
         for s in strengths:
             print(colorize(f"    - {s}", "dim"))
 
-    issue_character = judgment.get("issue_character", "")
-    if issue_character:
-        print(colorize(f"  Issue character: {issue_character}", "dim"))
+    dim_char = judgment.get("dimension_character", "")
+    if dim_char:
+        print(colorize(f"  Dimension character: {dim_char}", "dim"))
+    else:
+        issue_character = judgment.get("issue_character", "")
+        if issue_character:
+            print(colorize(f"  Issue character: {issue_character}", "dim"))
 
 
 def _render_subjective_dimension(

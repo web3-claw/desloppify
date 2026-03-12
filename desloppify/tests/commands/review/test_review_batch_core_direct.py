@@ -107,7 +107,7 @@ def test_batch_prompt_requires_score_and_issue_consistency():
         },
     )
     assert "Seed files (start here):" in prompt
-    assert "Start from the seed files" in prompt
+    assert "Start from seed files" in prompt
     assert "blind packet's `system_prompt`" in prompt
     assert "Evaluate ONLY listed files and ONLY listed dimensions" not in prompt
 

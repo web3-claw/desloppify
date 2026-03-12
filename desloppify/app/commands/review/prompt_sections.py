@@ -515,7 +515,13 @@ def render_dimension_context_block(
             if not header:
                 continue
             settled = insight.get("settled", False)
-            prefix = "[settled] " if settled else ""
+            positive = insight.get("positive", False)
+            tags = []
+            if settled:
+                tags.append("settled")
+            if positive:
+                tags.append("+")
+            prefix = f"[{', '.join(tags)}] " if tags else ""
             lines.append(f"- {prefix}{header}")
         if len(lines) > 1:
             sections.append("\n".join(lines))
@@ -524,15 +530,16 @@ def render_dimension_context_block(
         return ""
 
     header_block = (
-        "## Accumulated Codebase Context\n\n"
-        "Previous reviews established these insights. Do not re-investigate settled\n"
-        "items unless you see clear evidence the code has changed. For full details\n"
-        "on any item, read the blind packet's `dimension_contexts.{dimension}.insights`.\n\n"
+        "## Codebase Characteristics\n\n"
+        "Previous reviews established these characteristics. [+] marks positive\n"
+        "patterns; [settled] means confirmed. Augment this list: add new\n"
+        "observations, refine descriptions, settle or remove items as needed.\n"
+        "For full details, read `dimension_contexts.{dimension}.insights`.\n\n"
     )
     footer = (
         "\nPrinciples: Keep your own context updates succinct. Each insight should have\n"
         "a clear header (5-10 words) and a description explaining WHY, not WHAT.\n"
-        "Settle items only when you're confident they're intentional.\n\n"
+        "Positive patterns get `positive: true`. Settle items when confident.\n\n"
     )
     return header_block + "\n\n".join(sections) + footer
 
@@ -562,34 +569,40 @@ def render_seed_files_block(context: PromptBatchContext) -> str:
 
 def render_task_requirements(*, issues_cap: int, dim_set: set[str]) -> str:
     dim_focus = render_dimension_focus(dim_set)
-    # Build numbered items; dimension focus items get renumbered dynamically.
     lines = [
-        "Task requirements:",
-        "1. Read the blind packet's `system_prompt` — it contains scoring rules and calibration.",
-        "2. Start from the seed files, then freely explore the repository to build your understanding.",
-        "3. Keep issues and scoring scoped to this batch's dimension.",
-        "4. Respect scope controls: do not include files/directories marked by `exclude`, `suppress`, or non-production zone overrides.",
-        f"5. Return 0-{issues_cap} issues for this batch (empty array allowed).",
+        "Phase 1 — Observe:",
+        "1. Read the blind packet's `system_prompt` — scoring rules and calibration.",
+        "2. Study the dimension rubric (description, look_for, skip).",
+        "3. Review the existing characteristics list — which are settled? Which are positive? What needs updating?",
+        "4. Start from seed files. Use scan evidence, historical issues, and mechanical findings as navigation aids.",
+        "5. Adjudicate mechanical concern signals (confirm/dismiss with fingerprint).",
+        "6. Augment the characteristics list via context_updates: positive patterns (positive: true), neutral characteristics, design insights.",
+        "7. Collect defects for issues[].",
+        "8. Respect scope controls: exclude files/directories marked by `exclude`, `suppress`, or non-production zone overrides.",
+        "9. Output a Phase 1 summary: list ALL characteristics for this dimension (existing + new, mark [+] for positive) and all defects collected. This is your consolidated reference for Phase 2.",
+        "",
+        "Phase 2 — Judge (after Phase 1 is complete):",
+        "10. Keep issues and scoring scoped to this batch's dimension.",
+        f"11. Return 0-{issues_cap} issues for this batch (empty array allowed).",
     ]
-    next_num = 6
+    next_num = 12
     if dim_focus:
         for focus_line in dim_focus.rstrip("\n").split("\n"):
             lines.append(f"{next_num}. {focus_line.lstrip('0123456789abcdefghij. ')}")
             next_num += 1
     lines.append(
-        f"{next_num}. Complete `dimension_judgment` for your dimension — all three fields "
-        "(strengths, issue_character, score_rationale) are required. Write the judgment BEFORE setting the score."
+        f"{next_num}. Complete `dimension_judgment`: write dimension_character "
+        "(synthesizing characteristics and defects) then score_rationale. "
+        "Set the score LAST."
     )
     next_num += 1
     lines.append(
-        f"{next_num}. Output context_updates for your dimension. For each insight you discover about "
-        "WHY the codebase is structured this way — design rationales, deliberate tradeoffs, "
-        "invariants, positive patterns — use `add` with a clear header (5-10 words) and a "
-        "description explaining the reasoning. New insights can be added directly as "
-        "`settled: true` when you're confident; use the `settle` operation only to promote "
-        "existing unsettled insights from prior reviews. Use `remove` for insights that are "
-        "no longer true. If you have no context updates, omit the context_updates key entirely. "
-        "Keep descriptions to 1-3 sentences focused on WHY, not WHAT."
+        f"{next_num}. Output context_updates with your Phase 1 observations. "
+        "Use `add` with a clear header (5-10 words) and description (1-3 "
+        "sentences focused on WHY, not WHAT). Positive patterns get "
+        "`positive: true`. New insights can be `settled: true` when confident. "
+        "Use `settle` to promote existing unsettled insights. Use `remove` for "
+        "insights no longer true. Omit context_updates if no changes."
     )
     next_num += 1
     lines.append(f"{next_num}. Do not edit repository files.")

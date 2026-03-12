@@ -20,6 +20,7 @@ class SubjectiveAssessmentJudgment(TypedDict, total=False):
 
     strengths: list[str]
     issue_character: str
+    dimension_character: str
     score_rationale: str
 
 
@@ -102,10 +103,32 @@ class IgnoreIntegrityModel(TypedDict, total=False):
     raw_issues: int
 
 
+class ContextInsight(TypedDict, total=False):
+    """A single piece of accumulated knowledge about a dimension."""
+
+    header: str
+    description: str
+    settled: bool
+    positive: bool
+    added_at: str
+    source: str
+
+
+class DimensionContext(TypedDict, total=False):
+    """Accumulated understanding for a subjective dimension across review rounds."""
+
+    insights: list[ContextInsight]
+    created_at: str
+    updated_at: str
+    stable_rounds: int
+
+
 __all__ = [
     "AssessmentImportAuditEntry",
     "AttestationLogEntry",
     "ConcernDismissal",
+    "ContextInsight",
+    "DimensionContext",
     "IgnoreIntegrityModel",
     "LangCapability",
     "ReviewCacheModel",

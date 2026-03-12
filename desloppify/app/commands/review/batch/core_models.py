@@ -52,6 +52,7 @@ class BatchDimensionJudgmentPayload(TypedDict, total=False):
 
     strengths: list[str]
     issue_character: str
+    dimension_character: str
     score_rationale: str
 
 
@@ -73,6 +74,7 @@ class BatchResultPayload(TypedDict):
     dimension_judgment: dict[str, BatchDimensionJudgmentPayload]
     quality: BatchQualityPayload
     batch_index: NotRequired[int]
+    context_updates: NotRequired[dict[str, dict[str, object]]]
 
 
 @dataclass(frozen=True)
