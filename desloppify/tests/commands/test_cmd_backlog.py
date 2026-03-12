@@ -40,10 +40,14 @@ def test_cmd_backlog_uses_backlog_queue(monkeypatch) -> None:
     monkeypatch.setattr(backlog_mod, "check_config_staleness", lambda _config: None)
 
     def _build_and_render(*_args, **kwargs):
-        captured["build_work_queue_fn"] = kwargs["build_work_queue_fn"]
+        captured["view"] = kwargs["view"]
+        captured["deps"] = kwargs["deps"]
 
-    monkeypatch.setattr(backlog_mod, "build_and_render_backlog_queue", _build_and_render)
+    monkeypatch.setattr(backlog_mod, "build_and_render_queue", _build_and_render)
 
     backlog_mod.cmd_backlog(_args())
 
-    assert captured["build_work_queue_fn"] is backlog_mod.build_backlog_queue
+    assert captured["view"] is backlog_mod.BACKLOG_QUEUE_VIEW
+    deps = captured["deps"]
+    assert isinstance(deps, backlog_mod.QueueRenderDeps)
+    assert deps.build_work_queue_fn is backlog_mod.build_backlog_queue

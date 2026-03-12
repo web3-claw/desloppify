@@ -126,18 +126,20 @@ def test_organize_records_zero_issue_noop_batch(monkeypatch) -> None:
     assert any(action == "triage_organize" for action, _kwargs in logs)
 
 
-def test_public_wrappers_delegate_to_private(monkeypatch) -> None:
+def test_public_stage_entrypoints_remain_callable(monkeypatch) -> None:
     called: list[str] = []
-    monkeypatch.setattr(observe_mod, "_cmd_stage_observe", lambda *args, **kwargs: called.append("observe"))
+    services, _saved, _logs = _services({"epic_triage_meta": {"triage_stages": {}}})
     monkeypatch.setattr(reflect_mod, "_cmd_stage_reflect", lambda *args, **kwargs: called.append("reflect"))
     monkeypatch.setattr(organize_mod, "_cmd_stage_organize", lambda *args, **kwargs: called.append("organize"))
+    monkeypatch.setattr(observe_mod, "ensure_triage_started", lambda *args, **kwargs: SimpleNamespace(status="blocked"))
 
     args = _args()
-    observe_mod.cmd_stage_observe(args)
+    observe_mod.cmd_stage_observe(args, services=services)
     reflect_mod.cmd_stage_reflect(args)
     organize_mod.cmd_stage_organize(args)
 
-    assert called == ["observe", "reflect", "organize"]
+    assert callable(observe_mod._cmd_stage_observe)
+    assert called == ["reflect", "organize"]
 
 
 def test_reflect_rejects_incomplete_issue_accounting(monkeypatch, capsys) -> None:

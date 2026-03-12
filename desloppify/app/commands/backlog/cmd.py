@@ -13,7 +13,11 @@ from desloppify.base.tooling import check_config_staleness
 from desloppify.engine.plan_state import load_plan
 from desloppify.engine.planning.queue_policy import build_backlog_queue
 
-from desloppify.app.commands.next.queue_flow import build_and_render_backlog_queue
+from desloppify.app.commands.next.queue_flow import (
+    BACKLOG_QUEUE_VIEW,
+    QueueRenderDeps,
+    build_and_render_queue,
+)
 
 
 def cmd_backlog(args: argparse.Namespace) -> None:
@@ -28,15 +32,18 @@ def cmd_backlog(args: argparse.Namespace) -> None:
     if config_warning:
         print(colorize(f"  {config_warning}", "yellow"))
 
-    build_and_render_backlog_queue(
+    build_and_render_queue(
         args,
         state,
         config,
-        resolve_lang_fn=resolve_lang,
-        load_plan_fn=load_plan,
-        build_work_queue_fn=build_backlog_queue,
-        write_query_fn=write_query,
+        view=BACKLOG_QUEUE_VIEW,
+        deps=QueueRenderDeps(
+            resolve_lang_fn=resolve_lang,
+            load_plan_fn=load_plan,
+            build_work_queue_fn=build_backlog_queue,
+            write_query_fn=write_query,
+        ),
     )
 
 
-__all__ = ["build_and_render_backlog_queue", "cmd_backlog"]
+__all__ = ["BACKLOG_QUEUE_VIEW", "QueueRenderDeps", "build_and_render_queue", "cmd_backlog"]

@@ -679,15 +679,15 @@ def test_refresh_scorecard_after_import_skips_subjective_only_state(monkeypatch)
 def test_report_review_import_outcome_writes_query_payload(monkeypatch) -> None:
     captured: list[dict] = []
     monkeypatch.setattr(results_mod.narrative_mod, "compute_narrative", lambda *_a, **_k: {"summary": "ok"})
-    monkeypatch.setattr(results_mod.import_helpers_mod, "print_skipped_validation_details", lambda *_a, **_k: None)
-    monkeypatch.setattr(results_mod.import_helpers_mod, "print_assessments_summary", lambda *_a, **_k: None)
+    monkeypatch.setattr(results_mod, "print_skipped_validation_details", lambda *_a, **_k: None)
+    monkeypatch.setattr(results_mod, "print_assessments_summary", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        results_mod.import_helpers_mod,
+        results_mod,
         "print_open_review_summary",
         lambda *_a, **_k: "desloppify next",
     )
     monkeypatch.setattr(
-        results_mod.import_helpers_mod,
+        results_mod,
         "print_review_import_scores_and_integrity",
         lambda *_a, **_k: [{"name": "Design coherence", "score": 95.0}],
     )
@@ -716,15 +716,15 @@ def test_report_review_import_outcome_writes_query_payload(monkeypatch) -> None:
 
 def test_report_review_import_outcome_reports_provisional_warning(capsys, monkeypatch) -> None:
     monkeypatch.setattr(results_mod.narrative_mod, "compute_narrative", lambda *_a, **_k: {})
-    monkeypatch.setattr(results_mod.import_helpers_mod, "print_skipped_validation_details", lambda *_a, **_k: None)
-    monkeypatch.setattr(results_mod.import_helpers_mod, "print_assessments_summary", lambda *_a, **_k: None)
+    monkeypatch.setattr(results_mod, "print_skipped_validation_details", lambda *_a, **_k: None)
+    monkeypatch.setattr(results_mod, "print_assessments_summary", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        results_mod.import_helpers_mod,
+        results_mod,
         "print_open_review_summary",
         lambda *_a, **_k: "desloppify next",
     )
     monkeypatch.setattr(
-        results_mod.import_helpers_mod,
+        results_mod,
         "print_review_import_scores_and_integrity",
         lambda *_a, **_k: [],
     )
@@ -777,11 +777,11 @@ def test_results_source_preserves_query_and_narrative_contract() -> None:
     assert 'NarrativeContext(lang=lang_name, command="review")' in src
     assert 'print(colorize(f"\\n  {label} imported:", "bold"))' in src
     assert 'issue_count = int(diff.get("new", 0) or 0)' in src
-    assert "import_helpers_mod.print_skipped_validation_details" in src
-    assert "import_helpers_mod.print_assessments_summary" in src
-    assert "next_command = import_helpers_mod.print_open_review_summary(" in src
+    assert "print_skipped_validation_details(diff, colorize_fn=colorize)" in src
+    assert "print_assessments_summary(state, colorize_fn=colorize)" in src
+    assert "next_command = print_open_review_summary(" in src
     assert "show_score_with_plan_context(state, prev)" in src
-    assert "import_helpers_mod.print_review_import_scores_and_integrity(" in src
+    assert "print_review_import_scores_and_integrity(" in src
     assert 'f"  Next command to improve subjective scores: `{next_command}`"' in src
     assert "write_query(" in src
     assert '"command": "review"' in src

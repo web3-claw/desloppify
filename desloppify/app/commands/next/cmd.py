@@ -16,7 +16,7 @@ from desloppify.engine.plan_state import load_plan
 from desloppify.engine.planning.queue_policy import build_execution_queue
 
 from .options import NextOptions
-from .queue_flow import QueueRenderDeps, build_and_render_execution_queue
+from .queue_flow import EXECUTION_QUEUE_VIEW, QueueRenderDeps, build_and_render_queue
 from .subjective import _low_subjective_dimensions
 
 # Backward-compatible test seam: `next` now uses the execution queue wrapper.
@@ -40,10 +40,11 @@ def cmd_next(args: argparse.Namespace) -> None:
 
     if getattr(args, "format", "terminal") == "terminal":
         print_triage_guardrail_info(state=state)
-    build_and_render_execution_queue(
+    build_and_render_queue(
         args,
         state,
         config,
+        view=EXECUTION_QUEUE_VIEW,
         deps=QueueRenderDeps(
             resolve_lang_fn=resolve_lang,
             load_plan_fn=load_plan,
@@ -58,7 +59,7 @@ __all__ = [
     "_low_subjective_dimensions",
     "build_work_queue",
     "build_execution_queue",
-    "build_and_render_execution_queue",
+    "build_and_render_queue",
     "cmd_next",
     "load_plan",
     "resolve_lang",

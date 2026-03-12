@@ -15,8 +15,9 @@ from desloppify.engine.plan_triage import (
 from desloppify.base.output.terminal import colorize
 from desloppify.state_io import StateModel
 
-from .helpers import ensure_active_triage_issue_ids, has_triage_in_queue, inject_triage_stages
+from .review_coverage import ensure_active_triage_issue_ids
 from .services import TriageServices
+from .stage_queue import has_triage_in_queue, inject_triage_stages
 
 TriageStartStatus = Literal["started", "blocked", "already_active"]
 

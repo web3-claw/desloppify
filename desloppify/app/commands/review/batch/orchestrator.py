@@ -108,66 +108,6 @@ def _batch_live_log_interval_seconds(heartbeat_seconds: float) -> float:
     return max(1.0, min(heartbeat_seconds, 10.0))
 
 
-def _prompt_fn_with_policy(*, policy_block: str, **kwargs):
-    """Render one batch prompt with the active queue policy block."""
-    return render_batch_prompt(**kwargs, policy_block=policy_block)
-
-
-def _selected_batch_indexes_for_args(args, *, batch_count: int) -> list[int]:
-    """Resolve the subset of investigation batches selected by CLI args."""
-    return selected_batch_indexes(
-        raw_selection=getattr(args, "only_batches", None),
-        batch_count=batch_count,
-        parse_fn=parse_batch_selection,
-        colorize_fn=colorize,
-    )
-
-
-def _build_codex_batch_runner_deps(policy) -> CodexBatchRunnerDeps:
-    """Build shared subprocess deps for one local codex batch run."""
-    return CodexBatchRunnerDeps(
-        timeout_seconds=policy.batch_timeout_seconds,
-        subprocess_run=subprocess.run,
-        timeout_error=subprocess.TimeoutExpired,
-        safe_write_text_fn=safe_write_text,
-        use_popen_runner=(getattr(subprocess.run, "__module__", "") == "subprocess"),
-        subprocess_popen=subprocess.Popen,
-        live_log_interval_seconds=_batch_live_log_interval_seconds(
-            policy.heartbeat_seconds
-        ),
-        stall_after_output_seconds=policy.stall_kill_seconds,
-        max_retries=policy.batch_max_retries,
-        retry_backoff_seconds=policy.batch_retry_backoff_seconds,
-    )
-
-
-def _build_followup_scan_deps(*, project_root: Path) -> FollowupScanDeps:
-    """Build follow-up scan deps for one post-import scan."""
-    return FollowupScanDeps(
-        project_root=project_root,
-        timeout_seconds=FOLLOWUP_SCAN_TIMEOUT_SECONDS,
-        python_executable=sys.executable,
-        subprocess_run=subprocess.run,
-        timeout_error=subprocess.TimeoutExpired,
-        colorize_fn=colorize,
-    )
-
-
-def _run_followup_scan_with_deps(
-    *,
-    lang_name,
-    scan_path,
-    deps: FollowupScanDeps,
-) -> int:
-    """Run a post-import scan with prebuilt scan deps."""
-    return run_followup_scan(
-        lang_name=lang_name,
-        scan_path=scan_path,
-        deps=deps,
-        force_queue_bypass=True,
-    )
-
-
 def _build_batch_run_deps(*, policy, project_root: Path) -> review_batches_mod.BatchRunDeps:
     """Build the dependency bundle used by prepare/execute/import phases."""
     from desloppify.engine.plan_state import load_policy_result, render_policy_block
@@ -181,15 +121,40 @@ def _build_batch_run_deps(*, policy, project_root: Path) -> review_batches_mod.B
                 "yellow",
             )
         )
-    codex_batch_deps = _build_codex_batch_runner_deps(policy)
-    followup_scan_deps = _build_followup_scan_deps(project_root=project_root)
+    codex_batch_deps = CodexBatchRunnerDeps(
+        timeout_seconds=policy.batch_timeout_seconds,
+        subprocess_run=subprocess.run,
+        timeout_error=subprocess.TimeoutExpired,
+        safe_write_text_fn=safe_write_text,
+        use_popen_runner=(getattr(subprocess.run, "__module__", "") == "subprocess"),
+        subprocess_popen=subprocess.Popen,
+        live_log_interval_seconds=_batch_live_log_interval_seconds(
+            policy.heartbeat_seconds
+        ),
+        stall_after_output_seconds=policy.stall_kill_seconds,
+        max_retries=policy.batch_max_retries,
+        retry_backoff_seconds=policy.batch_retry_backoff_seconds,
+    )
+    followup_scan_deps = FollowupScanDeps(
+        project_root=project_root,
+        timeout_seconds=FOLLOWUP_SCAN_TIMEOUT_SECONDS,
+        python_executable=sys.executable,
+        subprocess_run=subprocess.run,
+        timeout_error=subprocess.TimeoutExpired,
+        colorize_fn=colorize,
+    )
     return review_batches_mod.BatchRunDeps(
         run_stamp_fn=run_stamp,
         load_or_prepare_packet_fn=_load_or_prepare_packet,
-        selected_batch_indexes_fn=_selected_batch_indexes_for_args,
+        selected_batch_indexes_fn=lambda args, batch_count: selected_batch_indexes(
+            raw_selection=getattr(args, "only_batches", None),
+            batch_count=batch_count,
+            parse_fn=parse_batch_selection,
+            colorize_fn=colorize,
+        ),
         prepare_run_artifacts_fn=partial(
             prepare_run_artifacts,
-            build_prompt_fn=partial(_prompt_fn_with_policy, policy_block=policy_block),
+            build_prompt_fn=partial(render_batch_prompt, policy_block=policy_block),
             safe_write_text_fn=safe_write_text,
             colorize_fn=colorize,
         ),
@@ -226,8 +191,9 @@ def _build_batch_run_deps(*, policy, project_root: Path) -> review_batches_mod.B
         build_import_provenance_fn=build_batch_import_provenance,
         do_import_fn=_do_import,
         run_followup_scan_fn=partial(
-            _run_followup_scan_with_deps,
+            run_followup_scan,
             deps=followup_scan_deps,
+            force_queue_bypass=True,
         ),
         safe_write_text_fn=safe_write_text,
         colorize_fn=colorize,

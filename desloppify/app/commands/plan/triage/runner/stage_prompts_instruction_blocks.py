@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from .stage_prompts_instruction_shared import PromptMode
+from .stage_prompts_instruction_shared import (
+    PromptMode,
+    observe_example_report_quality,
+    observe_false_positive_guidance,
+    observe_structured_template,
+)
 
 
 def _observe_instructions(mode: PromptMode = "self_record") -> str:
@@ -22,14 +27,7 @@ The orchestrator records and confirms the stage.
 
 Your task: verify every open review issue against the actual source code.
 
-**The review system has a high false-positive rate.** Issues frequently:
-- Claim "12 unsafe casts" when there are actually 2
-- Describe code that was already refactored
-- Propose over-engineering that would make things worse
-- Count props/returns/args wrong
-
-Your job is to catch these. An observe report that just restates issue titles is **worthless**.
-The value you add is reading the actual code and forming an independent judgment.
+{observe_false_positive_guidance()}
 
 Do NOT analyze themes, strategy, or relationships between issues. That's the next stage (reflect).
 Just verify: is each issue real?
@@ -56,13 +54,7 @@ Example subagent split for 90 issues across 17 dimensions:
 **Your report MUST include a structured assessment for EVERY issue.** Copy and fill out this
 template for each issue:
 
-```
-- hash: <issue hash>
-  verdict: genuine | false-positive | exaggerated | over-engineering
-  verdict_reasoning: <why this verdict — what you found when you read the code>
-  files_read: [<file paths the agent looked at>]
-  recommendation: <what to do about this issue>
-```
+{observe_structured_template()}
 
 **Example:**
 ```
@@ -79,16 +71,14 @@ template for each issue:
   recommendation: Decompose into focused sub-hooks
 ```
 
+{observe_example_report_quality()}
+
 **Validation checks (all blocking):**
 - Every entry must have a recognized `verdict` keyword
 - Every entry must have non-empty `verdict_reasoning`
 - Every entry must have non-empty `files_read` list
 - Every entry must have non-empty `recommendation`
 
-**What a LAZY observe report looks like (will be rejected):**
-- "There are several convention issues that should be addressed"
-- "The type safety dimension has some genuine concerns"
-- Listing issue titles without any verification or independent analysis
 - Template fields left empty or with placeholder text
 
 {tail}

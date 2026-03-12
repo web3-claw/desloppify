@@ -183,7 +183,7 @@ def test_run_triage_workflow_uses_recovered_runtime_state(monkeypatch, capsys) -
             )
 
     monkeypatch.setattr(
-        workflow_mod._display_mod,
+        workflow_mod,
         "cmd_triage_dashboard",
         lambda args, services=None: calls.append(services.command_runtime(args).state),
     )

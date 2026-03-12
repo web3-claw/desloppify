@@ -9,15 +9,16 @@ from pathlib import Path
 from desloppify.base.output.terminal import colorize
 from desloppify.engine.plan_triage import TRIAGE_CMD_OBSERVE
 
-from . import helpers as _helpers_mod
-from . import lifecycle as _lifecycle_mod
-from .confirmations import router as _confirmations_router_mod
-from .display import dashboard as _display_mod
+from .confirmations.router import cmd_confirm_stage
+from .display.dashboard import cmd_triage_dashboard
+from .lifecycle import ensure_triage_started
+from .review_coverage import ensure_active_triage_issue_ids
 from .runner.orchestrator_claude import run_claude_orchestrator
 from .runner.orchestrator_codex_pipeline import run_codex_pipeline
 from .runner.orchestrator_common import parse_only_stages
 from .runner.stage_prompts import cmd_stage_prompt
 from .services import TriageServices
+from .stage_queue import has_triage_in_queue, inject_triage_stages
 from .stages.completion import cmd_confirm_existing, cmd_triage_complete
 from .stages.commands import run_stage_command
 
@@ -31,7 +32,7 @@ def _cmd_triage_start(
     """Manually inject triage stage IDs into the queue and clear prior stages."""
     plan = services.load_plan()
 
-    if _helpers_mod.has_triage_in_queue(plan):
+    if has_triage_in_queue(plan):
         print(colorize("  Planning mode stages are already in the queue.", "yellow"))
         meta = plan.get("epic_triage_meta", {})
         stages = meta.get("triage_stages", {})
@@ -43,8 +44,8 @@ def _cmd_triage_start(
                 )
             )
             meta["triage_stages"] = {}
-            _helpers_mod.ensure_active_triage_issue_ids(plan, state)
-            _helpers_mod.inject_triage_stages(plan)
+            ensure_active_triage_issue_ids(plan, state)
+            inject_triage_stages(plan)
             services.save_plan(plan)
             services.append_log_entry(
                 plan,
@@ -55,15 +56,15 @@ def _cmd_triage_start(
             services.save_plan(plan)
             print(colorize("  Stages cleared. Begin with observe:", "green"))
         else:
-            _helpers_mod.ensure_active_triage_issue_ids(plan, state)
-            _helpers_mod.inject_triage_stages(plan)
+            ensure_active_triage_issue_ids(plan, state)
+            inject_triage_stages(plan)
             services.save_plan(plan)
             print(colorize("  Begin with observe:", "green"))
         print(colorize(f"    {TRIAGE_CMD_OBSERVE}", "dim"))
         return
 
     attestation: str | None = getattr(args, "attestation", None)
-    start_outcome = _lifecycle_mod.ensure_triage_started(
+    start_outcome = ensure_triage_started(
         plan,
         services=services,
         state=state,
@@ -168,7 +169,7 @@ def run_triage_workflow(
         _cmd_triage_start(args, state=state, services=services)
         return
     if getattr(args, "confirm", None):
-        _confirmations_router_mod.cmd_confirm_stage(args, services=services)
+        cmd_confirm_stage(args, services=services)
         return
     if getattr(args, "complete", False):
         cmd_triage_complete(args, services=services)
@@ -185,7 +186,7 @@ def run_triage_workflow(
         _run_dry_run(services=services, state=state)
         return
 
-    _display_mod.cmd_triage_dashboard(args, services=services)
+    cmd_triage_dashboard(args, services=services)
 
 
 __all__ = ["run_triage_workflow"]

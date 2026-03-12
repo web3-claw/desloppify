@@ -9,7 +9,7 @@ from typing import Literal
 from desloppify import state as state_mod
 from desloppify.app.commands.helpers.state import state_path
 from desloppify.app.commands.plan.override_resolve_helpers import blocked_triage_stages
-from desloppify.app.commands.plan.triage.helpers import (
+from desloppify.app.commands.plan.triage.stage_queue import (
     has_triage_in_queue,
     inject_triage_stages,
 )

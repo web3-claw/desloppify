@@ -8,7 +8,7 @@ from desloppify import state as state_mod
 from desloppify.intelligence.review.dimensions import normalize_dimension_name
 from desloppify.intelligence.review.importing.contracts_types import ReviewImportPayload
 
-from . import helpers as import_helpers_mod
+from .parse import ImportParseOptions
 
 
 class ImportFlagValidationError(ValueError):
@@ -34,8 +34,8 @@ def build_import_load_config(
     import_config: ReviewImportConfig,
     override_enabled: bool,
     override_attest: str | None,
-) -> import_helpers_mod.ImportLoadConfig:
-    return import_helpers_mod.ImportLoadConfig(
+) -> ImportParseOptions:
+    return ImportParseOptions(
         lang_name=lang_name,
         allow_partial=import_config.allow_partial,
         trusted_assessment_source=import_config.trusted_assessment_source,

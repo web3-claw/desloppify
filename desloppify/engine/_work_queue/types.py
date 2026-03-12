@@ -22,15 +22,20 @@ class PlanClusterRef(TypedDict, total=False):
     action_steps: list[dict[str, Any]]
 
 
-class WorkQueueItem(TypedDict, total=False):
-    """Unified queue item shape used across ranking/ordering/rendering."""
+class QueueItemBase(TypedDict):
+    """Required fields shared by all queue views."""
 
     id: str
+    kind: QueueItemKind
+    summary: str
+
+
+class QueueItemCommon(QueueItemBase, total=False):
+    """Optional fields shared across multiple queue item variants."""
+
     detector: str
     file: str
-    tier: int
     confidence: str
-    summary: str
     detail: dict[str, Any]
     status: str
     note: str | None
@@ -40,7 +45,6 @@ class WorkQueueItem(TypedDict, total=False):
     reopen_count: int
     suppressed: bool
     lang: str
-    kind: QueueItemKind
 
     # Ranking + policy metadata
     is_review: bool
@@ -63,33 +67,7 @@ class WorkQueueItem(TypedDict, total=False):
     plan_skip_kind: str
     plan_skip_reason: str
 
-    # Cluster metadata
-    members: list["WorkQueueItem"]
-    member_count: int
-    cluster_name: str
-    cluster_auto: bool
-    cluster_optional: bool
-
-    # Workflow-stage metadata
-    stage_name: str
-    stage_index: int
-    blocked_by: list[str]
-    is_blocked: bool
-
-    # Subjective-workflow metadata
-    initial_review: bool
-    cli_keys: list[str]
-    dimension: str
-    dimension_name: str
-    strict: float
-    score: float
-    failing: int
-    timestamp: str
-    placeholder: bool
-    stale: bool
-
     # Optional passthrough keys observed in queue item payloads
-    action: str
     active_cluster: str | None
     auto: bool
     cluster: str
@@ -115,13 +93,59 @@ class WorkQueueItem(TypedDict, total=False):
     triage_stages: dict[str, Any]
 
 
-# Semantic aliases for readability at call sites.
-IssueQueueItem: TypeAlias = WorkQueueItem
-SubjectiveDimensionItem: TypeAlias = WorkQueueItem
-WorkflowStageItem: TypeAlias = WorkQueueItem
-WorkflowActionItem: TypeAlias = WorkQueueItem
-ClusterQueueItem: TypeAlias = WorkQueueItem
+class IssueQueueItem(QueueItemCommon, total=False):
+    """Concrete queue item for a detector finding."""
 
+    tier: int
+
+
+class ClusterQueueItem(QueueItemCommon, total=False):
+    """Collapsed plan/work queue cluster item."""
+
+    members: list["WorkQueueItem"]
+    member_count: int
+    cluster_name: str
+    cluster_auto: bool
+    cluster_optional: bool
+
+
+class WorkflowStageItem(QueueItemCommon, total=False):
+    """Workflow-stage item used by triage/import checkpoints."""
+
+    stage_name: str
+    stage_index: int
+    blocked_by: list[str]
+    is_blocked: bool
+
+
+class WorkflowActionItem(QueueItemCommon, total=False):
+    """Workflow action or synthetic helper item."""
+
+    action: str
+
+
+class SubjectiveDimensionItem(QueueItemCommon, total=False):
+    """Subjective-dimension queue item."""
+
+    initial_review: bool
+    cli_keys: list[str]
+    dimension: str
+    dimension_name: str
+    strict: float
+    score: float
+    failing: int
+    timestamp: str
+    placeholder: bool
+    stale: bool
+
+
+WorkQueueItem: TypeAlias = (
+    IssueQueueItem
+    | ClusterQueueItem
+    | WorkflowStageItem
+    | WorkflowActionItem
+    | SubjectiveDimensionItem
+)
 WorkQueueGroups: TypeAlias = dict[str, list[WorkQueueItem]]
 
 
@@ -129,6 +153,8 @@ __all__ = [
     "ClusterQueueItem",
     "IssueQueueItem",
     "PlanClusterRef",
+    "QueueItemBase",
+    "QueueItemCommon",
     "QueueItemKind",
     "SubjectiveDimensionItem",
     "WorkflowActionItem",

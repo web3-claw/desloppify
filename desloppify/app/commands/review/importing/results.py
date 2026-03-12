@@ -13,7 +13,12 @@ from desloppify.base.config import target_strict_score_from_config
 from desloppify.base.output.terminal import colorize
 from desloppify.intelligence.narrative.core import NarrativeContext
 
-from . import helpers as import_helpers_mod
+from .output import (
+    print_assessments_summary,
+    print_open_review_summary,
+    print_review_import_scores_and_integrity,
+    print_skipped_validation_details,
+)
 
 
 def report_review_import_outcome(
@@ -54,14 +59,14 @@ def report_review_import_outcome(
                 "yellow",
             )
         )
-    import_helpers_mod.print_skipped_validation_details(diff, colorize_fn=colorize)
-    import_helpers_mod.print_assessments_summary(state, colorize_fn=colorize)
-    next_command = import_helpers_mod.print_open_review_summary(
+    print_skipped_validation_details(diff, colorize_fn=colorize)
+    print_assessments_summary(state, colorize_fn=colorize)
+    next_command = print_open_review_summary(
         state,
         colorize_fn=colorize,
     )
     show_score_with_plan_context(state, prev)
-    at_target = import_helpers_mod.print_review_import_scores_and_integrity(
+    at_target = print_review_import_scores_and_integrity(
         state,
         config or {},
         state_mod=state_mod,

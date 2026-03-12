@@ -33,7 +33,6 @@ from ..assessment_integrity import (
     bind_scorecard_subjective_at_target,
     subjective_at_target_dimensions,
 )
-from . import helpers as import_helpers_mod
 from .flags import (
     ImportFlagValidationError,
     ReviewImportConfig,
@@ -42,6 +41,12 @@ from .flags import (
     imported_assessment_keys,
     mark_manual_override_assessments_provisional,
     validate_import_flag_combos,
+)
+from .output import print_import_load_errors
+from .parse import (
+    ImportPayloadLoadError,
+    load_import_issues_data,
+    resolve_override_context,
 )
 from .plan_sync import sync_plan_after_import
 from .results import report_review_import_outcome
@@ -59,7 +64,7 @@ def _resolve_import_payload(
     import_config: ReviewImportConfig,
 ) -> tuple[dict, bool, str | None]:
     """Validate import flags and load payload with policy checks."""
-    override_enabled, override_attest = import_helpers_mod.resolve_override_context(
+    override_enabled, override_attest = resolve_override_context(
         manual_override=import_config.manual_override,
         manual_attest=import_config.manual_attest,
     )
@@ -74,17 +79,17 @@ def _resolve_import_payload(
         raise CommandError(str(exc), exit_code=1) from exc
 
     try:
-        issues_data = import_helpers_mod.load_import_issues_data(
+        issues_data = load_import_issues_data(
             import_file,
-            config=build_import_load_config(
+            options=build_import_load_config(
                 lang_name=lang_name,
                 import_config=import_config,
                 override_enabled=override_enabled,
                 override_attest=override_attest,
             ),
         )
-    except import_helpers_mod.ImportPayloadLoadError as exc:
-        import_helpers_mod.print_import_load_errors(
+    except ImportPayloadLoadError as exc:
+        print_import_load_errors(
             exc.errors,
             import_file=str(import_file),
             colorize_fn=colorize,

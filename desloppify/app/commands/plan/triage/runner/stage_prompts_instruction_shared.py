@@ -7,6 +7,48 @@ from typing import Literal
 _STAGES = ("observe", "reflect", "organize", "enrich", "sense-check")
 PromptMode = Literal["self_record", "output_only"]
 
+_OBSERVE_FALSE_POSITIVE_GUIDANCE = """\
+**The review system has a high false-positive rate.** Issues frequently:
+- Claim "12 unsafe casts" when there are actually 2
+- Describe code that was already refactored
+- Propose over-engineering that would make things worse
+- Count props/returns/args wrong
+
+Your job is to catch these. A report that just restates issue titles is **worthless**.
+The value you add is reading the actual code and forming an independent judgment.
+"""
+
+_OBSERVE_VERIFICATION_CHECKLIST = """\
+**For EVERY issue you must:**
+- Open and read the actual source file
+- Verify specific claims: count the actual casts, props, returns, line count
+- Check if the suggested fix already exists (common false positive)
+- Report a clear verdict: genuine / false positive / exaggerated / over-engineering
+"""
+
+_OBSERVE_EXAMPLE_REPORT_QUALITY = """\
+**What a GOOD report looks like:**
+- "[34580232] taskType is plain string — FALSE POSITIVE. Uses branded string union KnownTaskType
+  with ~25 literals in src/types/database.ts line 50. The issue describes code that doesn't exist."
+- "[b634fc71] useGenerationsPaneController returns 60+ values — GENUINE. Confirmed 65 properties
+  at lines 217-282. Mixes pane lifecycle, filters, gallery data, interaction, and navigation."
+
+**What a LAZY report looks like (will be rejected):**
+- "There are several convention issues that should be addressed"
+- "The type safety dimension has some genuine concerns"
+- Listing issue titles without any verification or independent analysis
+"""
+
+_OBSERVE_STRUCTURED_TEMPLATE = """\
+```
+- hash: <issue hash>
+  verdict: genuine | false-positive | exaggerated | over-engineering
+  verdict_reasoning: <what you verified in the code and why that leads to this verdict>
+  files_read: [<file paths you opened>]
+  recommendation: <what to do next>
+```
+"""
+
 _PREAMBLE_SELF_RECORD = """\
 You are a triage subagent with full codebase access and the desloppify CLI.
 Your job is to complete the **{stage}** stage of triage planning.
@@ -130,10 +172,34 @@ def render_cli_reference(cli_command: str = "desloppify") -> str:
     return _CLI_REFERENCE_TEMPLATE.format(cli_command=cli_command)
 
 
+def observe_false_positive_guidance() -> str:
+    """Return the shared observe-stage false-positive guidance block."""
+    return _OBSERVE_FALSE_POSITIVE_GUIDANCE
+
+
+def observe_verification_checklist() -> str:
+    """Return the shared observe-stage verification checklist."""
+    return _OBSERVE_VERIFICATION_CHECKLIST
+
+
+def observe_example_report_quality() -> str:
+    """Return shared examples of acceptable observe reporting quality."""
+    return _OBSERVE_EXAMPLE_REPORT_QUALITY
+
+
+def observe_structured_template() -> str:
+    """Return the shared structured observe template."""
+    return _OBSERVE_STRUCTURED_TEMPLATE
+
+
 __all__ = [
     "PromptMode",
     "_CLI_REFERENCE_TEMPLATE",
     "_STAGES",
+    "observe_example_report_quality",
+    "observe_false_positive_guidance",
+    "observe_structured_template",
+    "observe_verification_checklist",
     "render_cli_reference",
     "triage_prompt_preamble",
 ]

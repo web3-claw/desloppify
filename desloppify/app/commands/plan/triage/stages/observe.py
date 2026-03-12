@@ -15,7 +15,7 @@ from .records import record_observe_stage, resolve_reusable_report
 from .rendering import _print_observe_report_requirement
 
 
-def _cmd_stage_observe(
+def cmd_stage_observe(
     args: argparse.Namespace,
     *,
     services: TriageServices | None = None,
@@ -145,14 +145,7 @@ def _cmd_stage_observe(
         " until the analysis is backed by actual code evidence."
     )
 
-
-def cmd_stage_observe(
-    args: argparse.Namespace,
-    *,
-    services: TriageServices | None = None,
-) -> None:
-    """Public entrypoint for observe stage recording."""
-    _cmd_stage_observe(args, services=services)
+_cmd_stage_observe = cmd_stage_observe
 
 
 __all__ = ["_cmd_stage_observe", "cmd_stage_observe"]

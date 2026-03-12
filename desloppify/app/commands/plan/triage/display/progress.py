@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from desloppify.app.commands.helpers.display import short_issue_id
-from desloppify.app.commands.plan.triage.helpers import (
+from desloppify.app.commands.plan.triage.review_coverage import (
     cluster_issue_ids,
     triage_coverage,
 )
