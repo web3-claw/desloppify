@@ -190,9 +190,9 @@ SUBJECTIVE_DIMENSION_WEIGHTS: dict[str, float] = {
 SUBJECTIVE_CHECKS = 10
 
 FAILURE_STATUSES_BY_MODE: dict[ScoreMode, frozenset[str]] = {
-    "lenient": frozenset({"open"}),
-    "strict": frozenset({"open", "wontfix", "auto_resolved"}),
-    "verified_strict": frozenset({"open", "wontfix", "fixed", "false_positive"}),
+    "lenient": frozenset({"open", "deferred", "triaged_out"}),
+    "strict": frozenset({"open", "wontfix", "auto_resolved", "deferred", "triaged_out"}),
+    "verified_strict": frozenset({"open", "wontfix", "fixed", "false_positive", "deferred", "triaged_out"}),
 }
 
 # Tolerance for treating a subjective score as "on target" in integrity checks.

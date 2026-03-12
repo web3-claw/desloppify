@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from desloppify.base.coercions import coerce_positive_int
-from desloppify.engine._state.schema import StateModel
 import desloppify.intelligence.narrative.core as narrative_mod
+from desloppify.base.coercions import coerce_positive_int
+from desloppify.base.exception_sets import PLAN_LOAD_EXCEPTIONS
+from desloppify.engine._state.schema import StateModel
 from desloppify.intelligence.review.prepare import (
     HolisticReviewPrepareOptions,
     prepare_holistic_review,
@@ -41,7 +42,7 @@ def resolve_review_packet_context(args: Any) -> ReviewPacketContext:
     """Parse shared packet options from CLI args."""
     dims = parse_dimensions(args)
     dimensions = list(dims) if dims else None
-    retrospective = bool(getattr(args, "retrospective", False))
+    retrospective = bool(getattr(args, "retrospective", True))
     retrospective_max_issues = coerce_positive_int(
         getattr(args, "retrospective_max_issues", None),
         default=30,
@@ -92,7 +93,38 @@ def build_holistic_packet(
         ),
     )
     packet["narrative"] = narrative
+    _attach_plan_deferral_context(packet)
     return packet, lang_name
+
+
+def _attach_plan_deferral_context(packet: dict[str, Any]) -> None:
+    """Attach subjective_defer_meta from plan to investigation batches."""
+    try:
+        from desloppify.engine.plan_state import load_plan
+        plan = load_plan()
+    except PLAN_LOAD_EXCEPTIONS:
+        return
+    defer_meta = plan.get("subjective_defer_meta") if isinstance(plan, dict) else None
+    if not isinstance(defer_meta, dict) or not defer_meta:
+        return
+    defer_count = defer_meta.get("defer_count", 0)
+    if not isinstance(defer_count, int) or defer_count < 1:
+        return
+    deferred_ids = set(defer_meta.get("deferred_review_ids", []))
+    batches = packet.get("investigation_batches")
+    if not isinstance(batches, list):
+        return
+    for batch in batches:
+        if not isinstance(batch, dict):
+            continue
+        dims = batch.get("dimensions", [])
+        batch_defer: dict[str, dict] = {}
+        for dim in dims:
+            dim_id = f"subjective::{dim}"
+            if dim_id in deferred_ids or dim in deferred_ids:
+                batch_defer[dim] = {"deferred_cycles": defer_count}
+        if batch_defer:
+            batch["subjective_defer_meta"] = batch_defer
 
 
 def build_run_batches_next_command(context: ReviewPacketContext) -> str:
@@ -108,16 +140,13 @@ def build_run_batches_next_command(context: ReviewPacketContext) -> str:
     ]
     if context.dimensions:
         parts.extend(["--dimensions", ",".join(context.dimensions)])
-    if context.retrospective:
-        parts.extend(
-            [
-                "--retrospective",
-                "--retrospective-max-issues",
-                str(context.retrospective_max_issues),
-                "--retrospective-max-batch-items",
-                str(context.retrospective_max_batch_items),
-            ]
-        )
+    if not context.retrospective:
+        parts.append("--no-retrospective")
+    else:
+        if context.retrospective_max_issues != 30:
+            parts.extend(["--retrospective-max-issues", str(context.retrospective_max_issues)])
+        if context.retrospective_max_batch_items != 20:
+            parts.extend(["--retrospective-max-batch-items", str(context.retrospective_max_batch_items)])
     return " ".join(parts)
 
 
@@ -150,16 +179,8 @@ def build_external_submit_next_command(context: ReviewPacketContext) -> str:
         "--import",
         "<file>",
     ]
-    if context.retrospective:
-        parts.extend(
-            [
-                "--retrospective",
-                "--retrospective-max-issues",
-                str(context.retrospective_max_issues),
-                "--retrospective-max-batch-items",
-                str(context.retrospective_max_batch_items),
-            ]
-        )
+    if not context.retrospective:
+        parts.append("--no-retrospective")
     return " ".join(parts)
 
 

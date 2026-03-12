@@ -397,7 +397,7 @@ class TestCreateParser:
         assert args.manual_override is False
         assert args.attested_external is False
         assert args.attest is None
-        assert args.retrospective is False
+        assert args.retrospective is True
         assert args.retrospective_max_issues == 30
         assert args.retrospective_max_batch_items == 20
 

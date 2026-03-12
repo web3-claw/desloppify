@@ -12,26 +12,28 @@ from pathlib import Path
 from typing import Any
 
 from desloppify.app.commands.helpers.query import write_query
+from desloppify.app.commands.runner.codex_batch import (
+    FollowupScanDeps,
+    run_followup_scan,
+)
 from desloppify.base.discovery.file_paths import safe_write_text
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 
 from .batch.orchestrator import FOLLOWUP_SCAN_TIMEOUT_SECONDS
+from .importing.cmd import do_import, do_validate_import
+from .importing.flags import ReviewImportConfig
 from .packet.build import (
-    build_review_packet_payload,
     build_external_submit_next_command,
+    build_review_packet_payload,
     resolve_review_packet_context,
     write_review_packet_snapshot,
 )
-from .importing.cmd import do_import, do_validate_import
-from .importing.flags import ReviewImportConfig
-from .runner_packets import run_stamp, sha256_file
-from desloppify.app.commands.runner.codex_batch import FollowupScanDeps, run_followup_scan
-from .runtime.setup import setup_lang_concrete
 from .prompt_sections import (
     build_batch_context,
     explode_to_single_dimension,
     join_non_empty_sections,
+    render_dimension_deferral_context,
     render_dimension_prompts_block,
     render_historical_focus,
     render_judgment_findings_section,
@@ -42,6 +44,8 @@ from .prompt_sections import (
     render_seed_files_block,
     render_task_requirements,
 )
+from .runner_packets import run_stamp, sha256_file
+from .runtime.setup import setup_lang_concrete
 from .runtime_paths import (
     blind_packet_path as _blind_packet_path,
 )
@@ -232,6 +236,7 @@ def _build_claude_launch_prompt(
         )
         section += render_seed_files_block(ctx)
         section += render_historical_focus(batch)
+        section += render_dimension_deferral_context(batch)
         section += render_mechanical_concern_signals(batch)
         section += render_judgment_findings_section(batch)
         batch_sections.append(section)

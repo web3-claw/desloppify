@@ -44,10 +44,12 @@ def _add_core_options(p_review: argparse.ArgumentParser) -> None:
     )
     g_core.add_argument(
         "--retrospective",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
             "Include historical review issue status/note context in the packet "
-            "to support root-cause vs symptom analysis during review"
+            "to support root-cause vs symptom analysis during review "
+            "(enabled by default; use --no-retrospective to disable)"
         ),
     )
     g_core.add_argument(

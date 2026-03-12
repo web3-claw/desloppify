@@ -16,10 +16,10 @@ from desloppify.app.commands.scan.reporting import (
     dimensions as reporting_dimensions_mod,
 )
 from desloppify.base.discovery.file_paths import safe_write_text
+from desloppify.base.discovery.paths import read_code_snippet
 from desloppify.base.enums import canonical_issue_status
 from desloppify.base.output.fallbacks import print_write_error
 from desloppify.base.output.terminal import colorize
-from desloppify.base.discovery.paths import read_code_snippet
 from desloppify.engine.planning import CONFIDENCE_ORDER
 
 from .formatting import format_detail
@@ -54,6 +54,8 @@ def _print_single_issue(issue: dict, *, show_code: bool) -> None:
         "wontfix": "—",
         "false_positive": "✗",
         "auto_resolved": "◌",
+        "deferred": "⏸",
+        "triaged_out": "△",
     }.get(normalized_status, "?")
     zone = issue.get("zone", "production")
     zone_tag = colorize(f" [{zone}]", "dim") if zone != "production" else ""

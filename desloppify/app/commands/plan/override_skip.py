@@ -14,18 +14,15 @@ from desloppify.app.commands.helpers.attestation import (
 )
 from desloppify.app.commands.helpers.command_runtime import command_runtime
 from desloppify.app.commands.helpers.state import require_issue_inventory
-from desloppify.app.commands.plan.shared.patterns import resolve_ids_from_patterns
 from desloppify.app.commands.plan.override_io import (
     _plan_file_for_state,
     save_plan_state_transactional,
 )
+from desloppify.app.commands.plan.shared.patterns import resolve_ids_from_patterns
 from desloppify.base.exception_sets import CommandError
 from desloppify.base.output.terminal import colorize
 from desloppify.base.output.user_message import print_user_message
-from desloppify.engine.plan_state import (
-    load_plan,
-    save_plan,
-)
+from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
 from desloppify.engine.plan_ops import (
     SKIP_KIND_LABELS,
     append_log_entry,
@@ -37,7 +34,10 @@ from desloppify.engine.plan_ops import (
     skip_kind_state_status,
     unskip_items,
 )
-from desloppify.engine._plan.refresh_lifecycle import clear_postflight_scan_completion
+from desloppify.engine.plan_state import (
+    load_plan,
+    save_plan,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +354,20 @@ def cmd_plan_backlog(args: argparse.Namespace) -> None:
         print(colorize("  No matching deferred items found.", "yellow"))
         return
 
+    # Reopen issues whose state status was set by the skip (deferred/triaged_out)
+    # so they don't get stranded with a non-open status while untracked by plan.
+    _BACKLOG_REOPEN_STATUSES = {"deferred", "triaged_out"}
+    state_data = state_mod.load_state(state_file)
+    issues = state_data.get("issues", {})
+    reopen_ids = [
+        fid for fid in removed
+        if issues.get(fid, {}).get("status") in _BACKLOG_REOPEN_STATUSES
+    ]
+
+    if reopen_ids:
+        for fid in reopen_ids:
+            state_mod.resolve_issues(state_data, fid, "open")
+
     append_log_entry(
         plan,
         "backlog",
@@ -361,9 +375,20 @@ def cmd_plan_backlog(args: argparse.Namespace) -> None:
         actor="user",
     )
     clear_postflight_scan_completion(plan, issue_ids=removed)
-    save_plan(plan, plan_file)
+
+    if reopen_ids:
+        save_plan_state_transactional(
+            plan=plan,
+            plan_path=plan_file,
+            state_data=state_data,
+            state_path_value=state_file,
+        )
+    else:
+        save_plan(plan, plan_file)
 
     print(colorize(f"  Moved {len(removed)} item(s) to backlog.", "green"))
+    if reopen_ids:
+        print(colorize(f"  Reopened {len(reopen_ids)} deferred/triaged-out issue(s) in state.", "dim"))
 
 
 __all__ = [

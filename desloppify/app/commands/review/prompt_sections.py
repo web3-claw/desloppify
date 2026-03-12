@@ -22,6 +22,7 @@ class PromptBatchPayload(TypedDict, total=False):
     mechanical_finding_counts: dict[str, object]
     concern_signals: list[dict[str, object]]
     historical_issue_focus: dict[str, object]
+    subjective_defer_meta: dict[str, dict[str, object]]
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,15 @@ def render_scan_evidence_focus(dim_set: set[str]) -> str:
     )
 
 
+_HISTORICAL_STATUS_GROUPS = (
+    ("open", "Still open"),
+    ("deferred", "Deferred"),
+    ("triaged_out", "Triaged out"),
+)
+_HISTORICAL_RESOLVED_GROUP = "Resolved"
+_HISTORICAL_RESOLVED_STATUSES = {"fixed", "wontfix", "false_positive", "auto_resolved"}
+
+
 def render_historical_focus(batch: PromptBatchPayload) -> str:
     focus = batch.get("historical_issue_focus")
     if not isinstance(focus, dict):
@@ -138,27 +148,81 @@ def render_historical_focus(batch: PromptBatchPayload) -> str:
     if selected_count <= 0 or not issues:
         return ""
 
-    lines: list[str] = []
-    lines.append(
-        "Previously flagged issues — navigation aid, not scoring evidence:"
-    )
-    lines.append(
-        "Check whether each issue still exists in the current code. Do not re-report"
-        " issues that have been fixed or marked wontfix — focus on what remains or"
-        " what is new. If several past issues share a root cause, call that out."
-    )
+    lines: list[str] = [
+        "Previously flagged issues — navigation aid, not scoring evidence:",
+        "Check whether open issues still exist. Do not re-report resolved or deferred items.",
+        "If several past issues share a root cause, call that out.",
+    ]
 
+    # Group issues by status category
+    grouped: dict[str, list[dict]] = {}
     for entry in issues:
         if not isinstance(entry, dict):
             continue
+        status = str(entry.get("status", "open")).strip()
+        grouped.setdefault(status, []).append(entry)
+
+    def _render_entry(entry: dict) -> str:
         status = str(entry.get("status", "")).strip()
         summary = str(entry.get("summary", "")).strip()
         note = str(entry.get("note", "")).strip()
-
-        line = f"  - [{status}] {summary}"
+        prefix = f"[{status}] " if status else ""
+        line = f"    - {prefix}{summary}"
         if note:
             line += f" (note: {note})"
-        lines.append(line)
+        return line
+
+    # Render active groups first (open, deferred, triaged_out)
+    for status_key, group_label in _HISTORICAL_STATUS_GROUPS:
+        group = grouped.pop(status_key, [])
+        if group:
+            lines.append(f"\n  {group_label} ({len(group)}):")
+            lines.extend(_render_entry(e) for e in group)
+
+    # Render resolved group (all remaining resolved statuses)
+    resolved: list[dict] = []
+    for status_key in list(grouped):
+        if status_key in _HISTORICAL_RESOLVED_STATUSES:
+            resolved.extend(grouped.pop(status_key))
+    if resolved:
+        lines.append(f"\n  {_HISTORICAL_RESOLVED_GROUP} ({len(resolved)}):")
+        lines.extend(_render_entry(e) for e in resolved)
+
+    # Any unknown statuses
+    for status_key, group in grouped.items():
+        if group:
+            lines.append(f"\n  {status_key} ({len(group)}):")
+            lines.extend(_render_entry(e) for e in group)
+
+    lines.append("")
+    lines.append("Explore past review issues:")
+    lines.append("  desloppify show review --no-budget              # all open review issues")
+    lines.append("  desloppify show review --status deferred         # deferred issues")
+
+    return "\n".join(lines) + "\n\n"
+
+
+def render_dimension_deferral_context(batch: PromptBatchPayload) -> str:
+    """Render deferral context for dimensions that were deferred for multiple cycles."""
+    defer_meta = batch.get("subjective_defer_meta")
+    if not isinstance(defer_meta, dict) or not defer_meta:
+        return ""
+
+    lines: list[str] = []
+    for dim, meta in defer_meta.items():
+        if not isinstance(meta, dict):
+            continue
+        cycles = meta.get("deferred_cycles", 0)
+        if not isinstance(cycles, int) or cycles < 1:
+            continue
+        lines.append(
+            f"Note: {dim} was deferred for {cycles} scan cycle(s) while objective issues took priority."
+        )
+        lines.append(
+            "Previous assessment may be stale — calibrate accordingly."
+        )
+    if not lines:
+        return ""
     return "\n".join(lines) + "\n\n"
 
 
@@ -423,6 +487,56 @@ def render_dimension_prompts_block(
     return "\n".join(lines) + "\n"
 
 
+def render_dimension_context_block(
+    dimensions: tuple[str, ...],
+    dimension_contexts: dict[str, dict],
+) -> str:
+    """Render accumulated codebase context for dimensions that have insights.
+
+    Only surfaces headers in the prompt text — full descriptions are in the
+    blind packet's ``dimension_contexts`` section.
+    """
+    if not dimensions or not dimension_contexts:
+        return ""
+
+    sections: list[str] = []
+    for dim in dimensions:
+        ctx = dimension_contexts.get(dim)
+        if not isinstance(ctx, dict):
+            continue
+        insights = ctx.get("insights")
+        if not isinstance(insights, list) or not insights:
+            continue
+        lines: list[str] = [f"### {dim}"]
+        for insight in insights:
+            if not isinstance(insight, dict):
+                continue
+            header = str(insight.get("header", "")).strip()
+            if not header:
+                continue
+            settled = insight.get("settled", False)
+            prefix = "[settled] " if settled else ""
+            lines.append(f"- {prefix}{header}")
+        if len(lines) > 1:
+            sections.append("\n".join(lines))
+
+    if not sections:
+        return ""
+
+    header_block = (
+        "## Accumulated Codebase Context\n\n"
+        "Previous reviews established these insights. Do not re-investigate settled\n"
+        "items unless you see clear evidence the code has changed. For full details\n"
+        "on any item, read the blind packet's `dimension_contexts.{dimension}.insights`.\n\n"
+    )
+    footer = (
+        "\nPrinciples: Keep your own context updates succinct. Each insight should have\n"
+        "a clear header (5-10 words) and a description explaining WHY, not WHAT.\n"
+        "Settle items only when you're confident they're intentional.\n\n"
+    )
+    return header_block + "\n\n".join(sections) + footer
+
+
 def render_scoring_frame() -> str:
     return (
         "YOUR TASK: Read the code for this batch's dimension. Judge "
@@ -467,6 +581,17 @@ def render_task_requirements(*, issues_cap: int, dim_set: set[str]) -> str:
         "(strengths, issue_character, score_rationale) are required. Write the judgment BEFORE setting the score."
     )
     next_num += 1
+    lines.append(
+        f"{next_num}. Output context_updates for your dimension. For each insight you discover about "
+        "WHY the codebase is structured this way — design rationales, deliberate tradeoffs, "
+        "invariants, positive patterns — use `add` with a clear header (5-10 words) and a "
+        "description explaining the reasoning. New insights can be added directly as "
+        "`settled: true` when you're confident; use the `settle` operation only to promote "
+        "existing unsettled insights from prior reviews. Use `remove` for insights that are "
+        "no longer true. If you have no context updates, omit the context_updates key entirely. "
+        "Keep descriptions to 1-3 sentences focused on WHY, not WHAT."
+    )
+    next_num += 1
     lines.append(f"{next_num}. Do not edit repository files.")
     next_num += 1
     lines.append(f"{next_num}. Return ONLY valid JSON, no markdown fences.")
@@ -492,10 +617,12 @@ __all__ = [
     "coerce_string_list",
     "build_batch_context",
     "explode_to_single_dimension",
+    "render_dimension_context_block",
     "render_dimension_prompts_block",
     "SCAN_EVIDENCE_FOCUS_BY_DIMENSION",
     "render_scan_evidence_focus",
     "render_historical_focus",
+    "render_dimension_deferral_context",
     "render_findings_exploration_section",
     "render_judgment_findings_section",
     "render_mechanical_concern_signals",

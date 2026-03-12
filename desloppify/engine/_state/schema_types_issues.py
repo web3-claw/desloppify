@@ -62,6 +62,8 @@ class TierStats(TypedDict, total=False):
     auto_resolved: int
     wontfix: int
     false_positive: int
+    deferred: int
+    triaged_out: int
 
 
 class StateStats(TypedDict, total=False):
@@ -71,6 +73,8 @@ class StateStats(TypedDict, total=False):
     auto_resolved: int
     wontfix: int
     false_positive: int
+    deferred: int
+    triaged_out: int
     by_tier: dict[str, TierStats]
 
 

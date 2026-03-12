@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from desloppify.engine._plan.policy.stale import review_issue_snapshot_hash
 from desloppify.engine._plan.schema import (
     EPIC_PREFIX,
     Cluster,
     PlanModel,
     ensure_plan_defaults,
 )
-from desloppify.engine._plan.policy.stale import review_issue_snapshot_hash
+from desloppify.engine._plan.skip_policy import skip_kind_state_status
 from desloppify.engine._state.schema import StateModel, utc_now
 
 from .dismiss import dismiss_triage_issues
@@ -228,6 +229,15 @@ def apply_triage_to_plan(
         scan_count=int(state.get("scan_count", 0)),
     )
     result.issues_dismissed += dismiss_count
+
+    # Sync state status for dismissed issues so state is authoritative.
+    issues = state.get("issues", {})
+    triaged_out_status = skip_kind_state_status("triaged_out")
+    for fid in dismissed_ids:
+        issue = issues.get(fid)
+        if issue and issue.get("status") == "open" and triaged_out_status:
+            issue["status"] = triaged_out_status
+            issue["note"] = f"Triaged out by epic triage v{version}"
 
     _reorder_queue_by_dependency(
         order=order,

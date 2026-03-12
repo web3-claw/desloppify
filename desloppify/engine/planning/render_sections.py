@@ -14,13 +14,16 @@ from desloppify.engine.plan_ops import (
 
 def summary_lines(stats: dict) -> list[str]:
     open_count = stats.get("open", 0)
+    deferred_count = stats.get("deferred", 0) + stats.get("triaged_out", 0)
     total_issues = sum(
-        stats.get(key, 0) for key in ("open", "fixed", "wontfix", "auto_resolved")
+        stats.get(key, 0)
+        for key in ("open", "fixed", "wontfix", "auto_resolved", "deferred", "triaged_out")
     )
-    addressed = total_issues - open_count
+    addressed = total_issues - open_count - deferred_count
     pct = round(addressed / total_issues * 100) if total_issues else 100
+    deferred_note = f" · {deferred_count} deferred" if deferred_count else ""
     return [
-        f"- **{open_count} open** / {total_issues} total ({pct}% addressed)",
+        f"- **{open_count} open** / {total_issues} total ({pct}% addressed{deferred_note})",
         "",
     ]
 

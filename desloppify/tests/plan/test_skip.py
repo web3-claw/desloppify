@@ -129,7 +129,7 @@ def test_unskip_temporary():
     skip_items(plan, ["b"], kind="temporary")
     count, need_reopen, protected = unskip_items(plan, ["b"])
     assert count == 1
-    assert need_reopen == []
+    assert need_reopen == ["b"]  # temporary skips now set state to deferred, so need reopen
     assert protected == []
     assert "b" in plan["queue_order"]
     assert "b" not in plan["skipped"]
@@ -365,7 +365,7 @@ def test_skip_and_unskip_roundtrip():
     # Unskip all — b is protected (permanent with note), c is not (fp without note)
     count, need_reopen, protected = unskip_items(plan, ["a", "b", "c"])
     assert count == 2  # a (temporary) + c (fp without note)
-    assert set(need_reopen) == {"c"}
+    assert set(need_reopen) == {"a", "c"}  # temporary skips now need reopen too (deferred→open)
     assert protected == ["b"]
     assert "a" in plan["queue_order"]
     assert "b" not in plan["queue_order"]  # protected

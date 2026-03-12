@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from desloppify.intelligence.review.feedback_contract import (
@@ -14,16 +15,35 @@ from ..prompt_sections import (
     batch_dimension_prompts,
     build_batch_context,
     join_non_empty_sections,
+    render_dimension_context_block,
+    render_dimension_deferral_context,
     render_dimension_prompts_block,
     render_historical_focus,
     render_judgment_findings_section,
     render_mechanical_concern_signals,
     render_scan_evidence_note,
-    render_scoring_frame,
     render_scope_enums,
+    render_scoring_frame,
     render_seed_files_block,
     render_task_requirements,
 )
+
+_CONTEXT_SCHEMA_PATH = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "languages"
+    / "_framework"
+    / "review_data"
+    / "context_schema.json"
+)
+
+_context_schema_cache: dict | None = None
+
+
+def _load_context_schema() -> dict:
+    global _context_schema_cache  # noqa: PLW0603
+    if _context_schema_cache is None:
+        _context_schema_cache = json.loads(_CONTEXT_SCHEMA_PATH.read_text())
+    return _context_schema_cache
 
 
 def _render_metadata_block(
@@ -41,6 +61,18 @@ def _render_metadata_block(
         f"Batch name: {context.name}\n"
         f"Batch rationale: {context.rationale}\n\n"
     )
+
+
+def _render_context_update_example() -> str:
+    """Render a concrete context_updates example from the schema file."""
+    try:
+        schema = _load_context_schema()
+        example = schema.get("example")
+        if not isinstance(example, dict) or not example:
+            return ""
+        return "\n// context_updates example:\n" + json.dumps(example, indent=2) + "\n"
+    except (OSError, json.JSONDecodeError, KeyError):
+        return ""
 
 
 def _render_output_schema(context: PromptBatchContext, batch_index: int) -> str:
@@ -86,8 +118,17 @@ def _render_output_schema(context: PromptBatchContext, batch_index: int) -> str:
         '    "root_causes": ["optional: concise root-cause hypotheses"],\n'
         '    "likely_symptoms": ["optional: identifiers that look symptom-level"],\n'
         '    "possible_false_positives": ["optional: prior concept keys likely mis-scoped"]\n'
+        "  },\n"
+        '  "context_updates": {\n'
+        '    "<dimension>": {\n'
+        '      "add": [{"header": "short label", "description": "why this is the way it is", "settled": true|false}],\n'
+        '      "remove": ["header of insight to remove"],\n'
+        '      "settle": ["header of insight to mark as settled"],\n'
+        '      "unsettle": ["header of insight to unsettle"]\n'
+        "    }  // omit context_updates entirely if no changes\n"
         "  }\n"
         "}\n"
+        + _render_context_update_example()
     )
 
 def render_batch_prompt(
@@ -101,6 +142,7 @@ def render_batch_prompt(
     """Render one subagent prompt for a holistic investigation batch."""
     context = build_batch_context(batch, batch_index)
     dim_prompts = context.dimension_prompts or batch_dimension_prompts(batch)
+    dimension_contexts = batch.get("dimension_contexts") if isinstance(batch, dict) else None
     return join_non_empty_sections(
         _render_metadata_block(
             repo_root=repo_root,
@@ -111,9 +153,14 @@ def render_batch_prompt(
         render_dimension_prompts_block(context.dimensions, dim_prompts),
         policy_block,
         render_scoring_frame(),
+        render_dimension_context_block(
+            context.dimensions,
+            dimension_contexts if isinstance(dimension_contexts, dict) else {},
+        ),
         render_scan_evidence_note(),
         render_seed_files_block(context),
         render_historical_focus(batch),
+        render_dimension_deferral_context(batch),
         render_mechanical_concern_signals(batch),
         render_judgment_findings_section(batch),
         render_task_requirements(issues_cap=context.issues_cap, dim_set=context.dimension_set),

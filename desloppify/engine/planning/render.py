@@ -14,8 +14,12 @@ from desloppify.engine.planning.queue_policy import (
     build_backlog_queue,
     build_execution_queue,
 )
-from desloppify.engine.planning.render_items import plan_item_sections as _plan_item_sections_core
-from desloppify.engine.planning.render_items import render_queue_item_sections as _render_queue_item_sections
+from desloppify.engine.planning.render_items import (
+    plan_item_sections as _plan_item_sections_core,
+)
+from desloppify.engine.planning.render_items import (
+    render_queue_item_sections as _render_queue_item_sections,
+)
 from desloppify.engine.planning.render_sections import (
     addressed_section as _addressed_section,
 )
@@ -62,6 +66,8 @@ def _plan_header(state: PlanState, stats: dict) -> list[str]:
     total_loc = sum(metric.get("total_loc", 0) for metric in metrics.values())
     total_dirs = sum(metric.get("total_directories", 0) for metric in metrics.values())
 
+    deferred_total = stats.get("deferred", 0) + stats.get("triaged_out", 0)
+    deferred_segment = f" | {deferred_total} deferred" if deferred_total else ""
     lines = [
         f"# Desloppify Plan — {date.today().isoformat()}",
         "",
@@ -69,7 +75,8 @@ def _plan_header(state: PlanState, stats: dict) -> list[str]:
         f"{stats.get('open', 0)} open | "
         f"{stats.get('fixed', 0)} fixed | "
         f"{stats.get('wontfix', 0)} wontfix | "
-        f"{stats.get('auto_resolved', 0)} auto-resolved",
+        f"{stats.get('auto_resolved', 0)} auto-resolved"
+        f"{deferred_segment}",
         "",
     ]
 

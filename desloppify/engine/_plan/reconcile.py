@@ -7,8 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 from desloppify.engine._plan.annotations import get_issue_note
 from desloppify.engine._plan.constants import SYNTHETIC_PREFIXES
-from desloppify.engine._plan.operations.meta import append_log_entry
 from desloppify.engine._plan.operations.lifecycle import clear_focus_if_cluster_empty
+from desloppify.engine._plan.operations.meta import append_log_entry
 from desloppify.engine._plan.operations.skip import resurface_stale_skips
 from desloppify.engine._plan.promoted_ids import prune_promoted_ids
 from desloppify.engine._plan.reconcile_review_import import (
@@ -21,6 +21,7 @@ from desloppify.engine._plan.schema import (
     SupersededEntry,
     ensure_plan_defaults,
 )
+from desloppify.engine._plan.skip_policy import skip_kind_state_status
 from desloppify.engine._state.schema import StateModel, utc_now
 
 SUPERSEDED_TTL_DAYS = 90
@@ -40,22 +41,25 @@ class ReconcileResult:
 def _find_candidates(
     state: StateModel, detector: str, file: str
 ) -> list[str]:
-    """Find open issues that could be remaps for a disappeared issue."""
+    """Find alive issues that could be remaps for a disappeared issue."""
     candidates: list[str] = []
     for fid, issue in state.get("issues", {}).items():
-        if issue.get("status") != "open":
+        if issue.get("status") not in _ALIVE_STATUSES:
             continue
         if issue.get("detector") == detector and issue.get("file") == file:
             candidates.append(fid)
     return candidates
 
 
+_ALIVE_STATUSES = frozenset({"open", "deferred", "triaged_out"})
+
+
 def _is_issue_alive(state: StateModel, issue_id: str) -> bool:
-    """Return True if the issue exists and is open."""
+    """Return True if the issue exists and is actionable (open/deferred/triaged_out)."""
     issue = state.get("issues", {}).get(issue_id)
     if issue is None:
         return False
-    return issue.get("status") == "open"
+    return issue.get("status") in _ALIVE_STATUSES
 
 
 def _supersede_id(
@@ -220,6 +224,24 @@ def _reconcile_epic_clusters(
         result.changes += 1
 
 
+def _sync_skipped_issue_statuses(plan: PlanModel, state: StateModel) -> None:
+    """Sync state status for skipped issues that are still 'open'.
+
+    Ensures state is authoritative: temporary → deferred, triaged_out → triaged_out.
+    Runs on every reconcile so existing data gets migrated on next scan.
+    """
+    skipped = plan.get("skipped", {})
+    issues = state.get("issues", {})
+    for fid, entry in skipped.items():
+        issue = issues.get(fid)
+        if issue is None or issue.get("status") != "open":
+            continue
+        kind = str(entry.get("kind", ""))
+        target_status = skip_kind_state_status(kind)
+        if target_status and target_status != "open":
+            issue["status"] = target_status
+
+
 def reconcile_plan_after_scan(
     plan: PlanModel,
     state: StateModel,
@@ -245,6 +267,10 @@ def reconcile_plan_after_scan(
         if not name.startswith(EPIC_PREFIX)
     }
 
+    # Sync state status for issues in plan.skipped that are still "open" in state.
+    # This migrates existing data: temporary skips → deferred, triaged_out skips → triaged_out.
+    _sync_skipped_issue_statuses(plan, state)
+
     _supersede_dead_references(
         plan,
         state,
@@ -264,6 +290,12 @@ def reconcile_plan_after_scan(
     if resurfaced:
         result.resurfaced = resurfaced
         result.changes += len(resurfaced)
+        # Reopen resurfaced issues in state (they were deferred)
+        issues = state.get("issues", {})
+        for fid in resurfaced:
+            issue = issues.get(fid)
+            if issue and issue.get("status") == "deferred":
+                issue["status"] = "open"
 
     # Prune old superseded entries
     pruned = _prune_old_superseded(plan, now_dt)

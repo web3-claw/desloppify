@@ -38,13 +38,15 @@ def test_skip_policy_maps_and_requirements():
     assert skip_kind_requires_note("permanent") is True
     assert skip_kind_requires_note("false_positive") is False
 
-    assert skip_kind_state_status("temporary") is None
+    assert skip_kind_state_status("temporary") == "deferred"
     assert skip_kind_state_status("permanent") == "wontfix"
     assert skip_kind_state_status("false_positive") == "false_positive"
+    assert skip_kind_state_status("triaged_out") == "triaged_out"
 
-    assert skip_kind_needs_state_reopen("temporary") is False
+    assert skip_kind_needs_state_reopen("temporary") is True
     assert skip_kind_needs_state_reopen("permanent") is True
     assert skip_kind_needs_state_reopen("false_positive") is True
+    assert skip_kind_needs_state_reopen("triaged_out") is True
 
     assert tuple(USER_SKIP_KINDS) == ("temporary", "permanent", "false_positive")
     assert VALID_SKIP_KINDS == {

@@ -21,6 +21,8 @@ class Status(enum.StrEnum):
     WONTFIX = "wontfix"
     FALSE_POSITIVE = "false_positive"
     AUTO_RESOLVED = "auto_resolved"
+    DEFERRED = "deferred"
+    TRIAGED_OUT = "triaged_out"
     RESOLVED = "resolved"  # Legacy on-disk value; migrated to FIXED on load.
 
 
@@ -31,6 +33,8 @@ _CANONICAL_ISSUE_STATUSES = frozenset(
         Status.WONTFIX.value,
         Status.FALSE_POSITIVE.value,
         Status.AUTO_RESOLVED.value,
+        Status.DEFERRED.value,
+        Status.TRIAGED_OUT.value,
     }
 )
 _RESOLVED_STATUSES = frozenset(
