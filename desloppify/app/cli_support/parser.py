@@ -19,6 +19,7 @@ from desloppify.app.cli_support.parser_groups import (
     _add_next_parser,
     _add_review_parser,
     _add_scan_parser,
+    _add_setup_parser,
     _add_show_parser,
     _add_status_parser,
     _add_suppress_parser,
@@ -55,6 +56,7 @@ configure:
   config     Project configuration
   langs      List language plugins
   dev        Developer utilities
+  setup         Install bundled global AI skill files
   update-skill  Install/update agent skill document
 
 examples:
@@ -143,6 +145,7 @@ def create_parser(*, langs: list[str], detector_names: list[str]) -> argparse.Ar
     _add_directives_parser(sub)
     _add_langs_parser(sub)
     _add_dev_parser(sub)
+    _add_setup_parser(sub)
     _add_update_skill_parser(sub)
     return parser
 
